@@ -32,6 +32,7 @@ model User {
   referralCode  String   @unique @default(cuid())
   referredById  String?
   dailyStreak   Int      @default(0)
+  roleStats     Json     @default("{}")
   lastDailyAt   DateTime?
   
   isAdmin       Boolean  @default(false)
