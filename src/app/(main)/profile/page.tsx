@@ -82,10 +82,10 @@ export default function ProfilePage() {
     <div className="px-4 pt-6 pb-8 max-w-lg mx-auto space-y-4">
       <div className="flex items-center gap-4">
         <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center text-2xl font-bold text-white overflow-hidden">
-          {user.photoUrl ? <img src={user.photoUrl} alt="" className="w-full h-full object-cover" /> : (user.firstName?.[0] || "?")}
+          {(user.avatarUrl || user.photoUrl) ? <img src={(user.avatarUrl || user.photoUrl)!} alt="" className="w-full h-full object-cover" /> : (user.firstName?.[0] || "?")}
         </div>
         <div className="min-w-0">
-          <h1 className="text-xl font-bold text-white truncate">{user.firstName} {user.lastName || ""}</h1>
+          <h1 className="text-xl font-bold text-white truncate">{user.displayName || `${user.firstName || ""} ${user.lastName || ""}`.trim()}</h1>
           {user.username && <p className="text-white/40 text-sm">@{user.username}</p>}
           <p className="text-xs text-white/40 mt-1">Игрок GameHub</p>
         </div>
