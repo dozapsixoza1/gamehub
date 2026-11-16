@@ -5,7 +5,7 @@ import { TelegramProvider } from "@/components/layout/TelegramProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
-  subsets: ["latin", "cyrillic"],
+  subsets: ["latin"],
 });
 
 const geistMono = Geist_Mono({
