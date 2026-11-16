@@ -1,0 +1,253 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ======================
+// ПОЛЬЗОВАТЕЛИ
+// ======================
+
+model User {
+  id            String   @id @default(cuid())
+  telegramId    BigInt   @unique
+  username      String?
+  firstName     String?
+  lastName      String?
+  languageCode  String?  @default("ru")
+  photoUrl      String?
+  
+  // Валюта
+  coins         Int      @default(100)   // основная валюта
+  gems          Int      @default(0)     // премиум валюта
+  
+  // Статистика
+  gamesPlayed   Int      @default(0)
+  gamesWon      Int      @default(0)
+  
+  isAdmin       Boolean  @default(false)
+  isBanned      Boolean  @default(false)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  lastActiveAt  DateTime @default(now())
+
+  // Relations
+  promoRedemptions PromoRedemption[]
+  purchases        Purchase[]
+  mafiaPlayers     MafiaPlayer[]
+  ownedItems       UserItem[]
+
+  @@index([telegramId])
+  @@map("users")
+}
+
+// ======================
+// ПРОМОКОДЫ
+// ======================
+
+model PromoCode {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  coins       Int      @default(0)
+  gems        Int      @default(0)
+  maxUses     Int?     // null = бесконечно
+  usedCount   Int      @default(0)
+  expiresAt   DateTime?
+  isActive    Boolean  @default(true)
+  createdBy   BigInt   // telegramId админа
+  createdAt   DateTime @default(now())
+
+  redemptions PromoRedemption[]
+
+  @@map("promo_codes")
+}
+
+model PromoRedemption {
+  id        String   @id @default(cuid())
+  userId    String
+  promoId   String
+  redeemedAt DateTime @default(now())
+
+  user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  promo PromoCode @relation(fields: [promoId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, promoId])
+  @@map("promo_redemptions")
+}
+
+// ======================
+// МАГАЗИН
+// ======================
+
+model ShopItem {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  gameId      String   // "mafia" | "bunker" | "global" и т.д.
+  category    String   // "roles" | "skins" | "boosts" | "currency"
+  priceCoins  Int      @default(0)
+  priceGems   Int      @default(0)
+  imageUrl    String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  metadata    Json?    // дополнительные данные (например, какая роль)
+
+  purchases Purchase[]
+  ownedBy   UserItem[]
+
+  @@index([gameId, category])
+  @@map("shop_items")
+}
+
+model Purchase {
+  id        String   @id @default(cuid())
+  userId    String
+  itemId    String
+  pricePaid Int
+  currency  String   // "coins" | "gems"
+  createdAt DateTime @default(now())
+
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item ShopItem @relation(fields: [itemId], references: [id])
+
+  @@map("purchases")
+}
+
+model UserItem {
+  id        String   @id @default(cuid())
+  userId    String
+  itemId    String
+  quantity  Int      @default(1)
+  acquiredAt DateTime @default(now())
+
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item ShopItem @relation(fields: [itemId], references: [id])
+
+  @@unique([userId, itemId])
+  @@map("user_items")
+}
+
+// ======================
+// МАФИЯ
+// ======================
+
+enum MafiaRoomStatus {
+  WAITING     // ожидание игроков
+  STARTING    // раздача ролей
+  NIGHT       // ночная фаза
+  DAY         // дневная фаза + обсуждение
+  VOTING      // голосование
+  FINISHED    // игра окончена
+}
+
+enum MafiaRole {
+  CIVILIAN    // мирный житель
+  MAFIA       // мафия
+  DON         // дон мафии
+  DOCTOR      // доктор
+  SHERIFF     // шериф
+  MANIAC      // маньяк
+  COURTESAN   // красотка / путана
+}
+
+enum MafiaPhase {
+  NIGHT_MAFIA
+  NIGHT_DOCTOR
+  NIGHT_SHERIFF
+  NIGHT_MANIAC
+  NIGHT_COURTESAN
+  DAY_DISCUSSION
+  DAY_VOTING
+  DAY_LAST_WORDS
+}
+
+model MafiaRoom {
+  id            String          @id @default(cuid())
+  code          String          @unique  // короткий код комнаты (6 символов)
+  name          String?
+  hostId        String          // userId хоста
+  status        MafiaRoomStatus @default(WAITING)
+  maxPlayers    Int             @default(10)
+  minPlayers    Int             @default(4)
+  isPrivate     Boolean         @default(false)
+  
+  // Настройки ролей
+  rolesConfig   Json            // { civilian: 4, mafia: 2, doctor: 1, ... }
+  
+  // Текущая фаза
+  currentPhase  MafiaPhase?
+  dayNumber     Int             @default(0)
+  phaseEndsAt   DateTime?
+  
+  // Результаты
+  winner        String?         // "civilians" | "mafia" | "maniac"
+  
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  startedAt     DateTime?
+  finishedAt    DateTime?
+
+  players       MafiaPlayer[]
+  actions       MafiaAction[]
+  votes         MafiaVote[]
+
+  @@index([status])
+  @@index([code])
+  @@map("mafia_rooms")
+}
+
+model MafiaPlayer {
+  id          String    @id @default(cuid())
+  roomId      String
+  userId      String
+  role        MafiaRole?
+  isAlive     Boolean   @default(true)
+  isHost      Boolean   @default(false)
+  seatNumber  Int?
+  
+  // Ночные действия текущего круга
+  nightTarget String?   // id цели
+  
+  joinedAt    DateTime  @default(now())
+
+  room MafiaRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User      @relation(fields: [userId], references: [id])
+
+  @@unique([roomId, userId])
+  @@index([roomId])
+  @@map("mafia_players")
+}
+
+model MafiaAction {
+  id        String   @id @default(cuid())
+  roomId    String
+  actorId   String   // MafiaPlayer.id
+  targetId  String?  // MafiaPlayer.id
+  action    String   // "kill" | "heal" | "check" | "seduce" | "maniac_kill"
+  dayNumber Int
+  phase     MafiaPhase
+  createdAt DateTime @default(now())
+
+  room MafiaRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, dayNumber])
+  @@map("mafia_actions")
+}
+
+model MafiaVote {
+  id        String   @id @default(cuid())
+  roomId    String
+  voterId   String   // MafiaPlayer.id
+  targetId  String?  // MafiaPlayer.id (null = пропуск)
+  dayNumber Int
+  createdAt DateTime @default(now())
+
+  room MafiaRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, voterId, dayNumber])
+  @@map("mafia_votes")
+}
