@@ -12,7 +12,7 @@ export default function SettingsPage() {
   const [s,setS] = useState<Settings>({displayName:"",avatarUrl:"",theme:"dark",soundEnabled:true,notifications:true,language:"ru"});
   const [busy,setBusy] = useState(false);
   const [message,setMessage] = useState("");
-  useEffect(()=>{ if(!initData)return; fetch("/api/hub?type=settings",{headers:{"x-init-data":initData},cache:"no-store"}).then(r=>r.json()).then(d=>{if(d.settings)setS(d.settings); document.documentElement.dataset.theme=d.settings.theme || "dark";}).catch(()=>setMessage("Не удалось загрузить настройки")); },[initData]);
+  useEffect(()=>{ if(!initData)return; fetch("/api/hub?type=settings",{headers:{"x-init-data":initData},cache:"no-store"}).then(r=>r.json()).then(d=>{if(d.settings){setS(d.settings); document.documentElement.dataset.theme=d.settings.theme || "dark";}}).catch(()=>setMessage("Не удалось загрузить настройки")); },[initData]);
   const save = async()=>{
     if(!initData||busy)return; setBusy(true); setMessage("");
     try { const r=await fetch("/api/hub",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({initData,action:"save_settings",...s})}); const d=await r.json(); if(!r.ok)throw new Error(d.error||"Ошибка сохранения"); setS(d.settings); document.documentElement.dataset.theme=d.settings.theme || "dark"; setMessage("Настройки сохранены"); }
