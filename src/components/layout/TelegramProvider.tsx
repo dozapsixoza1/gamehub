@@ -41,6 +41,16 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
       if (res.ok) {
         const json = await res.json();
         setUser(json.user);
+        fetch("/api/hub?type=settings", { headers: { "x-init-data": data }, cache: "no-store" })
+          .then(r => r.json())
+          .then(settingsData => {
+            const settings = settingsData.settings;
+            if (settings) {
+              document.documentElement.dataset.theme = settings.theme || "dark";
+              setUser(current => current ? { ...current, displayName: settings.displayName, avatarUrl: settings.avatarUrl } : current);
+            }
+          })
+          .catch(() => {});
 
         // Автоматически применяем реферальный код из Telegram Mini App startapp.
         const startParam = (window as any).Telegram?.WebApp?.initDataUnsafe?.start_param || "";
