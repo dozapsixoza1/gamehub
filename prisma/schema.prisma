@@ -27,6 +27,12 @@ model User {
   // Статистика
   gamesPlayed   Int      @default(0)
   gamesWon      Int      @default(0)
+  xp            Int      @default(0)
+  level         Int      @default(1)
+  referralCode  String   @unique @default(cuid())
+  referredById  String?
+  dailyStreak   Int      @default(0)
+  lastDailyAt   DateTime?
   
   isAdmin       Boolean  @default(false)
   isBanned      Boolean  @default(false)
@@ -40,6 +46,11 @@ model User {
   purchases        Purchase[]
   mafiaPlayers     MafiaPlayer[]
   ownedItems       UserItem[]
+  achievements     UserAchievement[]
+  dailyRewards     DailyReward[]
+  matchHistory     MatchHistory[]
+  referralsMade    User[] @relation("UserReferrals")
+  referredBy       User? @relation("UserReferrals", fields: [referredById], references: [id], onDelete: SetNull)
 
   @@index([telegramId])
   @@map("users")
@@ -250,4 +261,70 @@ model MafiaVote {
 
   @@unique([roomId, voterId, dayNumber])
   @@map("mafia_votes")
+}
+
+
+// ======================
+// ПРОГРЕСС, НАГРАДЫ И ИСТОРИЯ
+// ======================
+
+model DailyReward {
+  id        String   @id @default(cuid())
+  userId    String
+  dateKey   String
+  coins     Int
+  xp        Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dateKey])
+  @@index([userId, createdAt])
+  @@map("daily_rewards")
+}
+
+model Achievement {
+  id          String   @id
+  title       String
+  description String
+  icon        String   @default("🏆")
+  xpReward    Int      @default(0)
+  coinsReward Int      @default(0)
+  users       UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@map("user_achievements")
+}
+
+model MatchHistory {
+  id           String   @id @default(cuid())
+  userId       String
+  gameId       String
+  roomId       String?
+  result       String
+  winner       String?
+  summary      String?
+  playersCount Int      @default(0)
+  xpEarned     Int      @default(0)
+  coinsEarned  Int      @default(0)
+  playedAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, playedAt])
+  @@index([gameId, playedAt])
+  @@map("match_history")
 }
