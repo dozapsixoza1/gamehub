@@ -40,6 +40,9 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   lastActiveAt  DateTime @default(now())
+  settings      UserSettings?
+  reportsMade   PlayerReport[] @relation("ReportAuthor")
+  reportsReceived PlayerReport[] @relation("ReportTarget")
 
   // Relations
   promoRedemptions PromoRedemption[]
@@ -185,6 +188,8 @@ model MafiaRoom {
   maxPlayers    Int             @default(10)
   minPlayers    Int             @default(4)
   isPrivate     Boolean         @default(false)
+  passwordHash  String?
+  inviteOnly    Boolean         @default(false)
   
   // Настройки ролей
   rolesConfig   Json            // { civilian: 4, mafia: 2, doctor: 1, ... }
@@ -205,6 +210,8 @@ model MafiaRoom {
   players       MafiaPlayer[]
   actions       MafiaAction[]
   votes         MafiaVote[]
+  chatMessages  RoomMessage[]
+  reactions     RoomReaction[]
 
   @@index([status])
   @@index([code])
@@ -327,4 +334,70 @@ model MatchHistory {
   @@index([userId, playedAt])
   @@index([gameId, playedAt])
   @@map("match_history")
+}
+
+
+// ======================
+// GAMEHUB SOCIAL + SETTINGS
+// ======================
+
+model UserSettings {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  displayName    String?
+  avatarUrl      String?
+  theme          String   @default("dark")
+  soundEnabled   Boolean  @default(true)
+  notifications  Boolean  @default(true)
+  language       String   @default("ru")
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("user_settings")
+}
+
+model RoomMessage {
+  id        String   @id @default(cuid())
+  roomId    String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  room      MafiaRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  @@index([roomId, createdAt])
+  @@map("room_messages")
+}
+
+model RoomReaction {
+  id        String   @id @default(cuid())
+  roomId    String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+  room      MafiaRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  @@index([roomId, createdAt])
+  @@map("room_reactions")
+}
+
+model PlayerReport {
+  id          String   @id @default(cuid())
+  authorId    String
+  targetId    String
+  roomId      String?
+  reason      String
+  details     String?
+  status      String   @default("OPEN")
+  createdAt   DateTime @default(now())
+  author      User     @relation("ReportAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  target      User     @relation("ReportTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  @@index([status, createdAt])
+  @@map("player_reports")
+}
+
+model Season {
+  id        String   @id @default(cuid())
+  name      String
+  startsAt  DateTime
+  endsAt    DateTime
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  @@map("seasons")
 }
