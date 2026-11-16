@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 
 import { ROLE_INFO } from "@/lib/mafia/roles";
+import { RoomSocial } from "@/components/games/RoomSocial";
 import type { MafiaRole } from "@prisma/client";
 import { cn } from "@/lib/utils";
 
@@ -657,6 +658,8 @@ export default function MafiaRoomPage() {
           ))}
         </div>
       </section>
+
+      <RoomSocial roomId={roomId} players={room.players} />
 
       {isWaiting && isHost && (
         <button
