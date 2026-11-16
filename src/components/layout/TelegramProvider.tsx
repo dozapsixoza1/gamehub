@@ -40,6 +40,19 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
       if (res.ok) {
         const json = await res.json();
         setUser(json.user);
+
+        // Автоматически применяем реферальный код из Telegram Mini App startapp.
+        const startParam = (window as any).Telegram?.WebApp?.initDataUnsafe?.start_param || "";
+        if (typeof startParam === "string" && startParam.startsWith("ref_")) {
+          const code = startParam.slice(4);
+          if (code) {
+            fetch("/api/progression", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ initData: data, action: "apply_referral", code }),
+            }).catch(console.error);
+          }
+        }
       }
     } catch (e) {
       console.error("Auth failed:", e);
