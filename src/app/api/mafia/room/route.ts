@@ -1,42 +1,274 @@
 import { NextRequest, NextResponse } from "next/server";
+import { MafiaRole, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { validateTelegramWebAppData } from "@/lib/telegram";
 import { generateRoomCode } from "@/lib/utils";
-import { getDefaultRolesConfig, assignRoles } from "@/lib/mafia/roles";
+import {
+  assignRoles,
+  checkWinCondition,
+  getDefaultRolesConfig
+} from "@/lib/mafia/roles";
 
-async function getUserFromInitData(initData: string) {
-  const botToken = process.env.BOT_TOKEN!;
-  const { valid, user: tgUser } = validateTelegramWebAppData(initData, botToken);
-  if (!valid || !tgUser) return null;
+const jsonError = (error: string, status = 400) =>
+  NextResponse.json({ error }, { status });
+
+async function getUser(initData: string) {
+  const token = process.env.BOT_TOKEN;
+
+  if (!token) return null;
+
+  const result = validateTelegramWebAppData(initData, token);
+
+  if (!result.valid || !result.user) return null;
 
   return prisma.user.findUnique({
-    where: { telegramId: BigInt(tgUser.id) },
+    where: {
+      telegramId: BigInt(result.user.id)
+    }
   });
+}
+
+async function finishIfWinner(roomId: string) {
+  const players = await prisma.mafiaPlayer.findMany({
+    where: { roomId }
+  });
+
+  const winner = checkWinCondition(players);
+
+  if (winner) {
+    await prisma.mafiaRoom.update({
+      where: { id: roomId },
+      data: {
+        status: "FINISHED",
+        winner,
+        finishedAt: new Date(),
+        phaseEndsAt: null
+      }
+    });
+
+    await Promise.all(
+      players.map(p =>
+        prisma.user.update({
+          where: { id: p.userId },
+          data: {
+            gamesPlayed: { increment: 1 }
+          }
+        }).catch(() => null)
+      )
+    );
+
+    const winners = players.filter(p =>
+      (winner === "mafia" &&
+        (p.role === "MAFIA" || p.role === "DON")) ||
+      (winner === "civilians" &&
+        p.role !== "MAFIA" &&
+        p.role !== "DON" &&
+        p.role !== "MANIAC") ||
+      (winner === "maniac" && p.role === "MANIAC")
+    );
+
+    await Promise.all(
+      winners.map(p =>
+        prisma.user.update({
+          where: { id: p.userId },
+          data: {
+            gamesWon: { increment: 1 }
+          }
+        }).catch(() => null)
+      )
+    );
+  }
+
+  return winner;
+}
+
+async function resolveNight(roomId: string, dayNumber: number) {
+  const [players, actions] = await Promise.all([
+    prisma.mafiaPlayer.findMany({
+      where: { roomId, isAlive: true }
+    }),
+    prisma.mafiaAction.findMany({
+      where: { roomId, dayNumber }
+    })
+  ]);
+
+  const blockedTargets = new Set(
+    actions
+      .filter(a => a.action === "seduce" && a.targetId)
+      .map(a => a.targetId!)
+  );
+
+  const valid = actions.filter(
+    a => !blockedTargets.has(a.actorId)
+  );
+
+  const countTargets = (kind: string) => {
+    const counts = new Map<string, number>();
+
+    valid
+      .filter(a => a.action === kind && a.targetId)
+      .forEach(a => {
+        counts.set(
+          a.targetId!,
+          (counts.get(a.targetId!) ?? 0) + 1
+        );
+      });
+
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  };
+
+  const mafiaTarget = countTargets("kill");
+  const maniacTarget = countTargets("maniac_kill");
+  const doctorTarget = countTargets("heal");
+
+  const sheriffAction = valid.find(
+    a => a.action === "check"
+  );
+
+  const killIds = new Set(
+    [mafiaTarget, maniacTarget].filter(
+      (x): x is string => Boolean(x)
+    )
+  );
+
+  if (doctorTarget) {
+    killIds.delete(doctorTarget);
+  }
+
+  const deaths = [...killIds].filter(id =>
+    players.some(p => p.id === id)
+  );
+
+  if (deaths.length) {
+    await prisma.mafiaPlayer.updateMany({
+      where: {
+        id: { in: deaths },
+        roomId
+      },
+      data: { isAlive: false }
+    });
+  }
+
+  const sheriffResult = sheriffAction?.targetId
+    ? players.find(p => p.id === sheriffAction.targetId)
+    : null;
+
+  await prisma.mafiaRoom.update({
+    where: { id: roomId },
+    data: {
+      status: "DAY",
+      currentPhase: "DAY_DISCUSSION",
+      phaseEndsAt: new Date(Date.now() + 60_000)
+    }
+  });
+
+  const winner = await finishIfWinner(roomId);
+
+  return {
+    deaths,
+    sheriffActorId: sheriffAction?.actorId ?? null,
+    sheriffTargetId: sheriffAction?.targetId ?? null,
+    sheriffIsMafia: sheriffResult
+      ? sheriffResult.role === "MAFIA" ||
+        sheriffResult.role === "DON"
+      : null,
+    winner
+  };
+}
+
+async function resolveVoting(roomId: string, dayNumber: number) {
+  const votes = await prisma.mafiaVote.findMany({
+    where: {
+      roomId,
+      dayNumber,
+      targetId: { not: null }
+    }
+  });
+
+  const tally = new Map<string, number>();
+
+  votes.forEach(v => {
+    tally.set(
+      v.targetId!,
+      (tally.get(v.targetId!) ?? 0) + 1
+    );
+  });
+
+  const sorted = [...tally.entries()]
+    .sort((a, b) => b[1] - a[1]);
+
+  const eliminated =
+    sorted.length &&
+    (sorted.length === 1 ||
+      sorted[0][1] > sorted[1][1])
+      ? sorted[0][0]
+      : null;
+
+  if (eliminated) {
+    await prisma.mafiaPlayer.updateMany({
+      where: {
+        id: eliminated,
+        roomId,
+        isAlive: true
+      },
+      data: { isAlive: false }
+    });
+  }
+
+  const winner = await finishIfWinner(roomId);
+
+  if (!winner) {
+    await prisma.mafiaRoom.update({
+      where: { id: roomId },
+      data: {
+        status: "NIGHT",
+        currentPhase: "NIGHT_MAFIA",
+        dayNumber: { increment: 1 },
+        phaseEndsAt: new Date(Date.now() + 90_000)
+      }
+    });
+  }
+
+  return {
+    eliminated,
+    winner,
+    tied:
+      sorted.length > 1 &&
+      sorted[0][1] === sorted[1][1]
+  };
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { initData, action } = body;
+
+    const { initData, action, roomId } = body;
 
     if (!initData || !action) {
-      return NextResponse.json({ error: "Missing data" }, { status: 400 });
+      return jsonError("Не хватает данных");
     }
 
-    const user = await getUserFromInitData(initData);
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const user = await getUser(initData);
+
+    if (!user || user.isBanned) {
+      return jsonError(
+        "Не удалось подтвердить Telegram-пользователя",
+        401
+      );
     }
 
-    // ======================
-    // CREATE ROOM
-    // ======================
     if (action === "create") {
       let code = generateRoomCode();
-      // Убеждаемся, что код уникален
-      for (let i = 0; i < 5; i++) {
-        const exists = await prisma.mafiaRoom.findUnique({ where: { code } });
-        if (!exists) break;
+
+      for (
+        let i = 0;
+        i < 10 &&
+        await prisma.mafiaRoom.findUnique({
+          where: { code }
+        });
+        i++
+      ) {
         code = generateRoomCode();
       }
 
@@ -46,119 +278,132 @@ export async function POST(req: NextRequest) {
           hostId: user.id,
           maxPlayers: 12,
           minPlayers: 4,
-          isPrivate: false,
           rolesConfig: getDefaultRolesConfig(8),
           players: {
             create: {
               userId: user.id,
               isHost: true,
-              seatNumber: 1,
-            },
-          },
-        },
-        include: {
-          players: {
-            include: { user: { select: { id: true, firstName: true, username: true, photoUrl: true } } },
-          },
-        },
+              seatNumber: 1
+            }
+          }
+        }
       });
 
-      return NextResponse.json({ roomId: room.id, code: room.code, room });
+      return NextResponse.json({
+        roomId: room.id,
+        code: room.code
+      });
     }
 
-    // ======================
-    // JOIN ROOM
-    // ======================
     if (action === "join") {
-      const { code } = body;
+      const code = String(body.code ?? "")
+        .trim()
+        .toUpperCase();
+
       if (!code) {
-        return NextResponse.json({ error: "Код комнаты обязателен" }, { status: 400 });
+        return jsonError("Введи код комнаты");
       }
 
       const room = await prisma.mafiaRoom.findUnique({
-        where: { code: code.toUpperCase() },
-        include: { players: true },
+        where: { code },
+        include: { players: true }
       });
 
       if (!room) {
-        return NextResponse.json({ error: "Комната не найдена" }, { status: 404 });
+        return jsonError("Комната не найдена", 404);
       }
 
       if (room.status !== "WAITING") {
-        return NextResponse.json({ error: "Игра уже началась" }, { status: 400 });
+        return jsonError("Игра уже началась");
       }
 
       if (room.players.length >= room.maxPlayers) {
-        return NextResponse.json({ error: "Комната заполнена" }, { status: 400 });
+        return jsonError("Комната заполнена");
       }
 
-      const alreadyIn = room.players.find((p) => p.userId === user.id);
-      if (alreadyIn) {
-        return NextResponse.json({ roomId: room.id, code: room.code });
+      if (!room.players.some(p => p.userId === user.id)) {
+        await prisma.mafiaPlayer.create({
+          data: {
+            roomId: room.id,
+            userId: user.id,
+            seatNumber: room.players.length + 1
+          }
+        });
       }
 
-      await prisma.mafiaPlayer.create({
-        data: {
-          roomId: room.id,
-          userId: user.id,
-          isHost: false,
-          seatNumber: room.players.length + 1,
-        },
+      return NextResponse.json({
+        roomId: room.id,
+        code: room.code
       });
-
-      return NextResponse.json({ roomId: room.id, code: room.code });
     }
 
-    // ======================
-    // START GAME
-    // ======================
+    if (!roomId) {
+      return jsonError("Не указан roomId");
+    }
+
+    const room = await prisma.mafiaRoom.findUnique({
+      where: { id: roomId },
+      include: { players: true }
+    });
+
+    if (!room) {
+      return jsonError("Комната не найдена", 404);
+    }
+
+    const me = room.players.find(
+      p => p.userId === user.id
+    );
+
+    if (!me) {
+      return jsonError(
+        "Ты не участник этой комнаты",
+        403
+      );
+    }
+
+    const host = room.hostId === user.id;
+
     if (action === "start") {
-      const { roomId } = body;
-      if (!roomId) {
-        return NextResponse.json({ error: "roomId required" }, { status: 400 });
-      }
-
-      const room = await prisma.mafiaRoom.findUnique({
-        where: { id: roomId },
-        include: { players: true },
-      });
-
-      if (!room) {
-        return NextResponse.json({ error: "Комната не найдена" }, { status: 404 });
-      }
-
-      if (room.hostId !== user.id) {
-        return NextResponse.json({ error: "Только хост может начать игру" }, { status: 403 });
-      }
-
-      if (room.status !== "WAITING") {
-        return NextResponse.json({ error: "Игра уже началась" }, { status: 400 });
-      }
-
-      if (room.players.length < room.minPlayers) {
-        return NextResponse.json(
-          { error: `Нужно минимум ${room.minPlayers} игроков` },
-          { status: 400 }
+      if (!host) {
+        return jsonError(
+          "Начать игру может только ведущий",
+          403
         );
       }
 
-      const config = getDefaultRolesConfig(room.players.length);
-      const roleMap = assignRoles(
-        room.players.map((p) => p.id),
+      if (room.status !== "WAITING") {
+        return jsonError("Игра уже началась");
+      }
+
+      if (room.players.length < room.minPlayers) {
+        return jsonError(
+          `Нужно минимум ${room.minPlayers} игрока`
+        );
+      }
+
+      const config = getDefaultRolesConfig(
+        room.players.length
+      );
+
+      const roles = assignRoles(
+        room.players.map(p => p.id),
         config
       );
 
-      // Обновляем роли игроков
-      await Promise.all(
-        Array.from(roleMap.entries()).map(([playerId, role]) =>
+      await prisma.$transaction(
+        [...roles.entries()].map(([id, role]) =>
           prisma.mafiaPlayer.update({
-            where: { id: playerId },
-            data: { role },
+            where: { id },
+            data: {
+              role,
+              isAlive: true,
+              nightTarget: null
+            }
           })
         )
       );
 
-      const updated = await prisma.mafiaRoom.update({
+      await prisma.mafiaRoom.update({
         where: { id: roomId },
         data: {
           status: "NIGHT",
@@ -166,86 +411,307 @@ export async function POST(req: NextRequest) {
           dayNumber: 1,
           rolesConfig: config,
           startedAt: new Date(),
-          phaseEndsAt: new Date(Date.now() + 60_000), // 60 сек на ночь
-        },
-        include: {
-          players: {
-            include: {
-              user: {
-                select: { id: true, firstName: true, username: true, photoUrl: true },
-              },
-            },
-          },
-        },
+          phaseEndsAt: new Date(Date.now() + 90_000),
+          winner: null
+        }
       });
 
-      return NextResponse.json({ success: true, room: updated });
+      return NextResponse.json({ success: true });
     }
 
-    // ======================
-    // LEAVE ROOM
-    // ======================
     if (action === "leave") {
-      const { roomId } = body;
-      if (!roomId) {
-        return NextResponse.json({ error: "roomId required" }, { status: 400 });
+      if (room.status !== "WAITING") {
+        return jsonError(
+          "Во время игры выйти нельзя"
+        );
       }
 
-      const player = await prisma.mafiaPlayer.findFirst({
-        where: { roomId, userId: user.id },
+      await prisma.mafiaPlayer.delete({
+        where: { id: me.id }
       });
 
-      if (!player) {
-        return NextResponse.json({ error: "Ты не в этой комнате" }, { status: 400 });
-      }
+      const rest = room.players
+        .filter(p => p.id !== me.id)
+        .sort(
+          (a, b) =>
+            a.joinedAt.getTime() -
+            b.joinedAt.getTime()
+        );
 
-      const room = await prisma.mafiaRoom.findUnique({ where: { id: roomId } });
-
-      if (room?.status !== "WAITING") {
-        return NextResponse.json({ error: "Нельзя выйти во время игры" }, { status: 400 });
-      }
-
-      await prisma.mafiaPlayer.delete({ where: { id: player.id } });
-
-      // Если хост вышел — передаём хоста или удаляем комнату
-      if (player.isHost) {
-        const remaining = await prisma.mafiaPlayer.findMany({
-          where: { roomId },
-          orderBy: { joinedAt: "asc" },
+      if (!rest.length) {
+        await prisma.mafiaRoom.delete({
+          where: { id: roomId }
+        });
+      } else if (host) {
+        await prisma.mafiaPlayer.update({
+          where: { id: rest[0].id },
+          data: { isHost: true }
         });
 
-        if (remaining.length === 0) {
-          await prisma.mafiaRoom.delete({ where: { id: roomId } });
-        } else {
-          await prisma.mafiaPlayer.update({
-            where: { id: remaining[0].id },
-            data: { isHost: true },
-          });
-          await prisma.mafiaRoom.update({
-            where: { id: roomId },
-            data: { hostId: remaining[0].userId },
-          });
-        }
+        await prisma.mafiaRoom.update({
+          where: { id: roomId },
+          data: { hostId: rest[0].userId }
+        });
       }
 
       return NextResponse.json({ success: true });
     }
 
-    return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+    if (action === "night_action") {
+      if (
+        room.status !== "NIGHT" ||
+        !me.isAlive ||
+        !me.role
+      ) {
+        return jsonError(
+          "Сейчас нельзя выполнить ночное действие"
+        );
+      }
+
+      const targetId = String(body.targetId ?? "");
+
+      const target = room.players.find(
+        p => p.id === targetId && p.isAlive
+      );
+
+      if (!target) {
+        return jsonError("Выбери живого игрока");
+      }
+
+      if (
+        target.id === me.id &&
+        me.role !== "DOCTOR"
+      ) {
+        return jsonError("Нельзя выбрать себя");
+      }
+
+      const roleAction: Partial<
+        Record<MafiaRole, string>
+      > = {
+        MAFIA: "kill",
+        DON: "kill",
+        DOCTOR: "heal",
+        SHERIFF: "check",
+        MANIAC: "maniac_kill",
+        COURTESAN: "seduce"
+      };
+
+      const kind = roleAction[me.role];
+
+      if (!kind) {
+        return jsonError(
+          "У твоей роли нет ночного действия"
+        );
+      }
+
+      if (
+        (me.role === "MAFIA" || me.role === "DON") &&
+        (target.role === "MAFIA" ||
+          target.role === "DON")
+      ) {
+        return jsonError(
+          "Нельзя выбирать союзника"
+        );
+      }
+
+      const previous = await prisma.mafiaAction.findFirst({
+        where: {
+          roomId,
+          actorId: me.id,
+          dayNumber: room.dayNumber
+        }
+      });
+
+      if (previous) {
+        await prisma.mafiaAction.update({
+          where: { id: previous.id },
+          data: {
+            targetId,
+            action: kind,
+            phase: "NIGHT_MAFIA"
+          }
+        });
+      } else {
+        await prisma.mafiaAction.create({
+          data: {
+            roomId,
+            actorId: me.id,
+            targetId,
+            action: kind,
+            dayNumber: room.dayNumber,
+            phase: "NIGHT_MAFIA"
+          }
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: "Действие принято"
+      });
+    }
+
+    if (action === "resolve_night") {
+      if (!host) {
+        return jsonError(
+          "Завершить ночь может ведущий",
+          403
+        );
+      }
+
+      if (room.status !== "NIGHT") {
+        return jsonError("Сейчас не ночь");
+      }
+
+      const result = await resolveNight(
+        roomId,
+        room.dayNumber
+      );
+
+      return NextResponse.json({
+        success: true,
+        ...result
+      });
+    }
+
+    if (action === "start_voting") {
+      if (!host) {
+        return jsonError(
+          "Начать голосование может ведущий",
+          403
+        );
+      }
+
+      if (room.status !== "DAY") {
+        return jsonError(
+          "Сейчас нельзя начать голосование"
+        );
+      }
+
+      await prisma.mafiaRoom.update({
+        where: { id: roomId },
+        data: {
+          status: "VOTING",
+          currentPhase: "DAY_VOTING",
+          phaseEndsAt: new Date(Date.now() + 60_000)
+        }
+      });
+
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === "vote") {
+      if (
+        room.status !== "VOTING" ||
+        !me.isAlive
+      ) {
+        return jsonError(
+          "Сейчас голосовать нельзя"
+        );
+      }
+
+      const targetId = body.targetId
+        ? String(body.targetId)
+        : null;
+
+      if (
+        targetId &&
+        !room.players.some(
+          p => p.id === targetId && p.isAlive
+        )
+      ) {
+        return jsonError("Цель недоступна");
+      }
+
+      if (targetId === me.id) {
+        return jsonError(
+          "Нельзя голосовать за себя"
+        );
+      }
+
+      await prisma.mafiaVote.upsert({
+        where: {
+          roomId_voterId_dayNumber: {
+            roomId,
+            voterId: me.id,
+            dayNumber: room.dayNumber
+          }
+        },
+        create: {
+          roomId,
+          voterId: me.id,
+          targetId,
+          dayNumber: room.dayNumber
+        },
+        update: { targetId }
+      });
+
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === "resolve_voting") {
+      if (!host) {
+        return jsonError(
+          "Завершить голосование может ведущий",
+          403
+        );
+      }
+
+      if (room.status !== "VOTING") {
+        return jsonError(
+          "Сейчас нет голосования"
+        );
+      }
+
+      const result = await resolveVoting(
+        roomId,
+        room.dayNumber
+      );
+
+      return NextResponse.json({
+        success: true,
+        ...result
+      });
+    }
+
+    return jsonError("Неизвестное действие");
   } catch (error) {
-    console.error("Mafia room error:", error);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    console.error("Mafia API:", error);
+
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return jsonError(
+        "Это действие уже выполнено"
+      );
+    }
+
+    return jsonError(
+      "Внутренняя ошибка сервера",
+      500
+    );
   }
 }
 
-// Получить состояние комнаты
 export async function GET(req: NextRequest) {
   try {
-    const roomId = req.nextUrl.searchParams.get("roomId");
-    const initData = req.nextUrl.searchParams.get("initData");
+    const roomId =
+      req.nextUrl.searchParams.get("roomId");
 
-    if (!roomId) {
-      return NextResponse.json({ error: "roomId required" }, { status: 400 });
+    const initData =
+      req.nextUrl.searchParams.get("initData") ?? "";
+
+    if (!roomId || !initData) {
+      return jsonError(
+        "Не хватает данных",
+        400
+      );
+    }
+
+    const user = await getUser(initData);
+
+    if (!user || user.isBanned) {
+      return jsonError("Нет доступа", 401);
     }
 
     const room = await prisma.mafiaRoom.findUnique({
@@ -259,56 +725,131 @@ export async function GET(req: NextRequest) {
                 firstName: true,
                 lastName: true,
                 username: true,
-                photoUrl: true,
-              },
-            },
+                photoUrl: true
+              }
+            }
           },
-          orderBy: { seatNumber: "asc" },
-        },
-      },
+          orderBy: { seatNumber: "asc" }
+        }
+      }
     });
 
     if (!room) {
-      return NextResponse.json({ error: "Комната не найдена" }, { status: 404 });
+      return jsonError(
+        "Комната не найдена",
+        404
+      );
     }
 
-    // Если есть initData — скрываем чужие роли
-    let myPlayerId: string | null = null;
-    let myRole: string | null = null;
+    const me = room.players.find(
+      p => p.userId === user.id
+    );
 
-    if (initData) {
-      const user = await getUserFromInitData(initData);
-      if (user) {
-        const me = room.players.find((p) => p.userId === user.id);
-        if (me) {
-          myPlayerId = me.id;
-          myRole = me.role;
+    if (!me) {
+      return jsonError(
+        "Ты не участник этой комнаты",
+        403
+      );
+    }
+
+    const [
+      myAction,
+      myVote,
+      voteCount,
+      myCheck
+    ] = await Promise.all([
+      prisma.mafiaAction.findFirst({
+        where: {
+          roomId,
+          actorId: me.id,
+          dayNumber: room.dayNumber
         }
-      }
-    }
+      }),
+      prisma.mafiaVote.findFirst({
+        where: {
+          roomId,
+          voterId: me.id,
+          dayNumber: room.dayNumber
+        }
+      }),
+      prisma.mafiaVote.count({
+        where: {
+          roomId,
+          dayNumber: room.dayNumber
+        }
+      }),
+      prisma.mafiaAction.findFirst({
+        where: {
+          roomId,
+          actorId: me.id,
+          dayNumber: room.dayNumber,
+          action: "check"
+        }
+      })
+    ]);
 
-    // Санитизация: другим не показываем роли (кроме своей и мёртвых после раскрытия)
-    const sanitizedPlayers = room.players.map((p) => ({
+    const isMafia =
+      me.role === "MAFIA" ||
+      me.role === "DON";
+
+    const players = room.players.map(p => ({
       id: p.id,
       userId: p.userId,
       isAlive: p.isAlive,
       isHost: p.isHost,
       seatNumber: p.seatNumber,
       user: p.user,
-      // Роль видна только себе или если игрок мёртв (для простоты)
-      role: p.id === myPlayerId || !p.isAlive ? p.role : null,
+      role:
+        p.id === me.id ||
+        !p.isAlive ||
+        room.status === "FINISHED" ||
+        (isMafia &&
+          (p.role === "MAFIA" || p.role === "DON"))
+          ? p.role
+          : null
     }));
+
+    let sheriffResult: boolean | null = null;
+
+    if (myCheck?.targetId) {
+      const target = room.players.find(
+        p => p.id === myCheck.targetId
+      );
+
+      sheriffResult = target
+        ? target.role === "MAFIA" ||
+          target.role === "DON"
+        : null;
+    }
 
     return NextResponse.json({
       room: {
-        ...room,
-        players: sanitizedPlayers,
-        myPlayerId,
-        myRole,
-      },
+        id: room.id,
+        code: room.code,
+        status: room.status,
+        currentPhase: room.currentPhase,
+        dayNumber: room.dayNumber,
+        hostId: room.hostId,
+        minPlayers: room.minPlayers,
+        maxPlayers: room.maxPlayers,
+        winner: room.winner,
+        phaseEndsAt: room.phaseEndsAt,
+        players,
+        myPlayerId: me.id,
+        myRole: me.role,
+        myAction: myAction?.action ?? null,
+        myTargetId: myAction?.targetId ?? null,
+        myVote: myVote?.targetId ?? null,
+        voteCount,
+        sheriffResult
+      }
     });
   } catch (error) {
-    console.error("Mafia GET error:", error);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    console.error("Mafia GET:", error);
+
+    return jsonError(
+      "Не удалось загрузить комнату",
+      500
+    );
   }
-}
+          }
