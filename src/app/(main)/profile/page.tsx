@@ -1,151 +1,143 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useTelegram } from "@/components/layout/TelegramProvider";
 import { formatNumber } from "@/lib/utils";
-import { Coins, Gem, Trophy, Gamepad2, Ticket } from "lucide-react";
+import { Coins, Gem, Trophy, Gamepad2, Ticket, Gift, Users, Star, History, Crown, Copy, Loader2 } from "lucide-react";
+
+type ProgressData = {
+  profile: {
+    coins: number; gems: number; gamesPlayed: number; gamesWon: number;
+    xp: number; level: number; currentLevelXp: number; nextLevelXp: number;
+    dailyStreak: number; referralCode: string; referrals: number;
+  };
+  achievements: { id: string; unlockedAt: string; achievement: { title: string; description: string; icon: string; xpReward: number; coinsReward: number } }[];
+  history: { id: string; gameId: string; result: string; winner: string | null; summary: string | null; playersCount: number; xpEarned: number; coinsEarned: number; playedAt: string }[];
+  leaderboard: { id: string; username: string | null; firstName: string | null; xp: number; level: number; gamesPlayed: number; gamesWon: number }[];
+};
 
 export default function ProfilePage() {
   const { user, initData, refreshUser, isLoading } = useTelegram();
   const [promoCode, setPromoCode] = useState("");
   const [promoStatus, setPromoStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [promoMessage, setPromoMessage] = useState("");
+  const [data, setData] = useState<ProgressData | null>(null);
+  const [dailyBusy, setDailyBusy] = useState(false);
+  const [dailyMessage, setDailyMessage] = useState("");
+  const [refCode, setRefCode] = useState("");
+  const [refMessage, setRefMessage] = useState("");
+  const [refBusy, setRefBusy] = useState(false);
+
+  const loadProgress = async () => {
+    if (!initData) return;
+    const res = await fetch("/api/progression", { headers: { "x-init-data": initData }, cache: "no-store" });
+    if (res.ok) setData(await res.json());
+  };
+
+  useEffect(() => { loadProgress().catch(console.error); }, [initData]);
+
+  const claimDaily = async () => {
+    setDailyBusy(true);
+    try {
+      const res = await fetch("/api/progression", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ initData, action: "claim_daily" }) });
+      const result = await res.json();
+      setDailyMessage(result.success ? `Получено: +${result.coins} монет и +${result.xp} XP. Серия: ${result.streak} дн.` : (result.message || result.error));
+      await Promise.all([loadProgress(), refreshUser()]);
+    } catch { setDailyMessage("Ошибка сети"); }
+    finally { setDailyBusy(false); }
+  };
+
+  const applyReferral = async () => {
+    setRefBusy(true);
+    try {
+      const res = await fetch("/api/progression", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ initData, action: "apply_referral", code: refCode.trim() }) });
+      const result = await res.json();
+      setRefMessage(result.message || result.error || "Готово");
+      if (result.success) { setRefCode(""); await Promise.all([loadProgress(), refreshUser()]); }
+    } catch { setRefMessage("Ошибка сети"); }
+    finally { setRefBusy(false); }
+  };
 
   const handlePromo = async () => {
     if (!promoCode.trim() || !initData) return;
-
     setPromoStatus("loading");
     try {
-      const res = await fetch("/api/promo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ initData, code: promoCode.trim() }),
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        setPromoStatus("success");
-        setPromoMessage(data.message);
-        setPromoCode("");
-        await refreshUser();
-      } else {
-        setPromoStatus("error");
-        setPromoMessage(data.message || "Ошибка");
-      }
-    } catch {
-      setPromoStatus("error");
-      setPromoMessage("Ошибка сети");
-    }
-
+      const res = await fetch("/api/promo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ initData, code: promoCode.trim() }) });
+      const result = await res.json();
+      if (result.success) { setPromoStatus("success"); setPromoMessage(result.message); setPromoCode(""); await refreshUser(); }
+      else { setPromoStatus("error"); setPromoMessage(result.message || "Ошибка"); }
+    } catch { setPromoStatus("error"); setPromoMessage("Ошибка сети"); }
     setTimeout(() => setPromoStatus("idle"), 3000);
   };
 
-  if (isLoading || !user) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (isLoading || !user) return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>;
 
-  const winrate =
-    user.gamesPlayed > 0
-      ? Math.round((user.gamesWon / user.gamesPlayed) * 100)
-      : 0;
+  const p = data?.profile;
+  const winrate = user.gamesPlayed > 0 ? Math.round((user.gamesWon / user.gamesPlayed) * 100) : 0;
+  const progress = p ? Math.min(100, Math.round(((p.xp - p.currentLevelXp) / Math.max(1, p.nextLevelXp - p.currentLevelXp)) * 100)) : 0;
+  const inviteLink = p ? `https://t.me/gamehubesbot?startapp=ref_${p.referralCode}` : "";
 
   return (
-    <div className="px-4 pt-6 max-w-lg mx-auto">
-      {/* Avatar + name */}
-      <div className="flex items-center gap-4 mb-8">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center text-2xl font-bold text-white">
-          {user.firstName?.[0] || "?"}
+    <div className="px-4 pt-6 pb-8 max-w-lg mx-auto space-y-4">
+      <div className="flex items-center gap-4">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center text-2xl font-bold text-white overflow-hidden">
+          {user.photoUrl ? <img src={user.photoUrl} alt="" className="w-full h-full object-cover" /> : (user.firstName?.[0] || "?")}
         </div>
-        <div>
-          <h1 className="text-xl font-bold text-white">
-            {user.firstName} {user.lastName || ""}
-          </h1>
-          {user.username && (
-            <p className="text-white/40 text-sm">@{user.username}</p>
-          )}
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold text-white truncate">{user.firstName} {user.lastName || ""}</h1>
+          {user.username && <p className="text-white/40 text-sm">@{user.username}</p>}
+          <p className="text-xs text-white/40 mt-1">Игрок GameHub</p>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="glass rounded-2xl p-4">
-          <div className="flex items-center gap-2 text-white/40 text-xs mb-1">
-            <Coins size={14} className="text-amber-400" />
-            Монеты
-          </div>
-          <div className="text-xl font-bold text-white">
-            {formatNumber(user.coins)}
-          </div>
+      <section className="glass rounded-2xl p-4">
+        <div className="flex justify-between items-center mb-2">
+          <div><p className="text-xs text-white/45">Уровень игрока</p><p className="text-2xl font-black text-white">Уровень {p?.level ?? 1}</p></div>
+          <div className="text-right"><p className="text-xs text-white/45">Опыт</p><p className="font-bold text-white">{formatNumber(p?.xp ?? 0)} XP</p></div>
         </div>
-        <div className="glass rounded-2xl p-4">
-          <div className="flex items-center gap-2 text-white/40 text-xs mb-1">
-            <Gem size={14} className="text-violet-400" />
-            Гемы
-          </div>
-          <div className="text-xl font-bold text-white">
-            {formatNumber(user.gems)}
-          </div>
-        </div>
-        <div className="glass rounded-2xl p-4">
-          <div className="flex items-center gap-2 text-white/40 text-xs mb-1">
-            <Gamepad2 size={14} />
-            Игр сыграно
-          </div>
-          <div className="text-xl font-bold text-white">
-            {user.gamesPlayed}
-          </div>
-        </div>
-        <div className="glass rounded-2xl p-4">
-          <div className="flex items-center gap-2 text-white/40 text-xs mb-1">
-            <Trophy size={14} className="text-yellow-400" />
-            Побед
-          </div>
-          <div className="text-xl font-bold text-white">
-            {user.gamesWon}{" "}
-            <span className="text-sm font-normal text-white/40">
-              ({winrate}%)
-            </span>
-          </div>
-        </div>
+        <div className="h-2 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-gradient-to-r from-red-500 to-orange-400 rounded-full" style={{ width: `${progress}%` }} /></div>
+        <p className="text-[11px] text-white/35 mt-2">{p ? `${p.xp - p.currentLevelXp} / ${p.nextLevelXp - p.currentLevelXp} XP до следующего уровня` : "Загрузка прогресса..."}</p>
+      </section>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="glass rounded-2xl p-4"><div className="flex gap-2 text-xs text-white/40 mb-1"><Coins size={14} className="text-amber-400" />Монеты</div><div className="text-xl font-bold text-white">{formatNumber(user.coins)}</div></div>
+        <div className="glass rounded-2xl p-4"><div className="flex gap-2 text-xs text-white/40 mb-1"><Gem size={14} className="text-violet-400" />Гемы</div><div className="text-xl font-bold text-white">{formatNumber(user.gems)}</div></div>
+        <div className="glass rounded-2xl p-4"><div className="flex gap-2 text-xs text-white/40 mb-1"><Gamepad2 size={14} />Матчи</div><div className="text-xl font-bold text-white">{user.gamesPlayed}</div></div>
+        <div className="glass rounded-2xl p-4"><div className="flex gap-2 text-xs text-white/40 mb-1"><Trophy size={14} className="text-yellow-400" />Победы</div><div className="text-xl font-bold text-white">{user.gamesWon} <span className="text-sm font-normal text-white/40">({winrate}%)</span></div></div>
       </div>
 
-      {/* Promo code */}
-      <div className="glass rounded-2xl p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Ticket size={18} className="text-white/60" />
-          <h2 className="font-medium text-white">Промокод</h2>
-        </div>
+      <section className="glass rounded-2xl p-4">
+        <div className="flex items-center gap-2 mb-2"><Gift size={18} className="text-amber-400" /><h2 className="font-semibold text-white">Ежедневная награда</h2></div>
+        <p className="text-xs text-white/45 mb-3">Заходи каждый день — награда растёт вместе с серией. Текущая серия: {p?.dailyStreak ?? 0} дн.</p>
+        <button onClick={claimDaily} disabled={dailyBusy || !data} className="w-full rounded-xl bg-white text-black font-semibold py-3 disabled:opacity-50">{dailyBusy ? "Получаем..." : "Забрать награду"}</button>
+        {dailyMessage && <p className="text-xs text-white/65 mt-2">{dailyMessage}</p>}
+      </section>
 
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={promoCode}
-            onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-            placeholder="Введи код"
-            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder:text-white/30 outline-none focus:border-white/25 transition"
-            maxLength={20}
-          />
-          <button
-            onClick={handlePromo}
-            disabled={!promoCode.trim() || promoStatus === "loading"}
-            className="px-5 py-2.5 bg-white text-black font-medium rounded-xl disabled:opacity-40 transition active:scale-95"
-          >
-            {promoStatus === "loading" ? "..." : "OK"}
-          </button>
-        </div>
+      <section className="glass rounded-2xl p-4">
+        <div className="flex items-center gap-2 mb-2"><Users size={18} className="text-sky-400" /><h2 className="font-semibold text-white">Приглашай друзей</h2></div>
+        <p className="text-xs text-white/45 mb-3">Друг получает 100 монет и 50 XP, ты — 200 монет и 100 XP за приглашённого игрока.</p>
+        <div className="flex gap-2"><input readOnly value={inviteLink || "Загрузка..."} className="min-w-0 flex-1 bg-black/20 border border-white/10 rounded-xl px-3 text-xs text-white/70" /><button onClick={() => navigator.clipboard.writeText(inviteLink)} disabled={!inviteLink} className="px-3 rounded-xl bg-white/10 text-white"><Copy size={16} /></button></div>
+        <p className="text-xs text-white/40 mt-2">Приглашено: {p?.referrals ?? 0}</p>
+        <div className="flex gap-2 mt-3"><input value={refCode} onChange={e => setRefCode(e.target.value)} placeholder="Код друга" className="min-w-0 flex-1 bg-black/20 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none" /><button onClick={applyReferral} disabled={refBusy || !refCode.trim()} className="px-4 rounded-xl bg-white text-black text-sm font-semibold disabled:opacity-40">{refBusy ? "..." : "Применить"}</button></div>
+        {refMessage && <p className="text-xs text-white/60 mt-2">{refMessage}</p>}
+      </section>
 
-        {promoStatus === "success" && (
-          <p className="text-emerald-400 text-sm mt-2">{promoMessage}</p>
-        )}
-        {promoStatus === "error" && (
-          <p className="text-red-400 text-sm mt-2">{promoMessage}</p>
-        )}
+      <section className="glass rounded-2xl p-4">
+        <div className="flex items-center justify-between mb-3"><div className="flex items-center gap-2"><Star size={18} className="text-yellow-400" /><h2 className="font-semibold text-white">Достижения</h2></div><span className="text-xs text-white/40">{data?.achievements.length ?? 0}</span></div>
+        {data?.achievements.length ? <div className="space-y-2">{data.achievements.map(a => <div key={a.id} className="flex items-center gap-3 bg-white/5 rounded-xl p-3"><span className="text-2xl">{a.achievement.icon}</span><div className="min-w-0 flex-1"><p className="text-sm font-medium text-white">{a.achievement.title}</p><p className="text-xs text-white/40">{a.achievement.description}</p></div></div>)}</div> : <p className="text-xs text-white/40">Пока нет открытых достижений. Играй и выполняй условия!</p>}
+      </section>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Link href="/leaderboard" className="glass rounded-xl p-3 flex items-center gap-2 text-sm text-white"><Crown size={17} className="text-yellow-400" />Рейтинг игроков</Link>
+        <Link href="/history" className="glass rounded-xl p-3 flex items-center gap-2 text-sm text-white"><History size={17} />История матчей</Link>
       </div>
+
+      <section className="glass rounded-2xl p-4">
+        <div className="flex items-center gap-2 mb-3"><Ticket size={18} className="text-white/60" /><h2 className="font-medium text-white">Промокод</h2></div>
+        <div className="flex gap-2"><input type="text" value={promoCode} onChange={e => setPromoCode(e.target.value.toUpperCase())} placeholder="Введи код" className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder:text-white/30 outline-none" maxLength={20} /><button onClick={handlePromo} disabled={!promoCode.trim() || promoStatus === "loading"} className="px-5 py-2.5 bg-white text-black font-medium rounded-xl disabled:opacity-40">{promoStatus === "loading" ? "..." : "OK"}</button></div>
+        {promoMessage && <p className={`text-sm mt-2 ${promoStatus === "error" ? "text-red-400" : "text-emerald-400"}`}>{promoMessage}</p>}
+      </section>
     </div>
   );
 }
