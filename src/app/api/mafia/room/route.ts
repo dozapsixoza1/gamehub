@@ -29,59 +29,47 @@ async function getUser(initData: string) {
 }
 
 async function finishIfWinner(roomId: string) {
-  const players = await prisma.mafiaPlayer.findMany({
-    where: { roomId }
-  });
-
+  const room = await prisma.mafiaRoom.findUnique({ where: { id: roomId } });
+  if (!room) return null;
+  if (room.status === "FINISHED") return room.winner;
+  const players = await prisma.mafiaPlayer.findMany({ where: { roomId } });
   const winner = checkWinCondition(players);
-
-  if (winner) {
-    await prisma.mafiaRoom.update({
-      where: { id: roomId },
-      data: {
-        status: "FINISHED",
-        winner,
-        finishedAt: new Date(),
-        phaseEndsAt: null
+  if (!winner) return null;
+  const locked = await prisma.mafiaRoom.updateMany({
+    where: { id: roomId, status: { not: "FINISHED" } },
+    data: { status: "FINISHED", winner, finishedAt: new Date(), phaseEndsAt: null },
+  });
+  if (locked.count === 0) return winner;
+  const defs = [
+    { id: "first_game", title: "Первый матч", description: "Сыграть первую партию", icon: "🎮", xpReward: 25, coinsReward: 25, test: (g: number) => g >= 1 },
+    { id: "games_10", title: "Постоянный игрок", description: "Сыграть 10 матчей", icon: "🔥", xpReward: 75, coinsReward: 75, test: (g: number) => g >= 10 },
+    { id: "wins_5", title: "Победитель", description: "Одержать 5 побед", icon: "🏆", xpReward: 100, coinsReward: 100, test: (_g: number, w: number) => w >= 5 },
+    { id: "games_50", title: "Ветеран", description: "Сыграть 50 матчей", icon: "⭐", xpReward: 250, coinsReward: 250, test: (g: number) => g >= 50 },
+    { id: "wins_25", title: "Легенда", description: "Одержать 25 побед", icon: "👑", xpReward: 500, coinsReward: 500, test: (_g: number, w: number) => w >= 25 },
+  ];
+  for (const player of players) {
+    const won = (winner === "mafia" && (player.role === "MAFIA" || player.role === "DON")) || (winner === "civilians" && player.role !== "MAFIA" && player.role !== "DON" && player.role !== "MANIAC") || (winner === "maniac" && player.role === "MANIAC");
+    const xp = won ? 100 : 50;
+    const coins = won ? 100 : 30;
+    const current = await prisma.user.findUnique({ where: { id: player.userId } });
+    if (!current) continue;
+    const gamesPlayed = current.gamesPlayed + 1;
+    const gamesWon = current.gamesWon + (won ? 1 : 0);
+    let totalXp = current.xp + xp;
+    await prisma.user.update({ where: { id: current.id }, data: { gamesPlayed: { increment: 1 }, ...(won ? { gamesWon: { increment: 1 } } : {}), xp: { increment: xp }, coins: { increment: coins }, level: Math.floor(Math.sqrt(totalXp / 100)) + 1 } });
+    await prisma.matchHistory.create({ data: { userId: current.id, gameId: "mafia", roomId, result: won ? "WIN" : "PLAYED", winner, summary: won ? "Команда победила в партии Мафии" : "Партия завершена", playersCount: players.length, xpEarned: xp, coinsEarned: coins } });
+    for (const a of defs) {
+      if (!a.test(gamesPlayed, gamesWon)) continue;
+      await prisma.achievement.upsert({ where: { id: a.id }, create: { id: a.id, title: a.title, description: a.description, icon: a.icon, xpReward: a.xpReward, coinsReward: a.coinsReward }, update: {} });
+      const created = await prisma.userAchievement.createMany({ data: [{ userId: current.id, achievementId: a.id }], skipDuplicates: true });
+      if (created.count > 0) {
+        totalXp += a.xpReward;
+        await prisma.user.update({ where: { id: current.id }, data: { xp: { increment: a.xpReward }, coins: { increment: a.coinsReward }, level: Math.floor(Math.sqrt(totalXp / 100)) + 1 } });
       }
-    });
-
-    await Promise.all(
-      players.map(p =>
-        prisma.user.update({
-          where: { id: p.userId },
-          data: {
-            gamesPlayed: { increment: 1 }
-          }
-        }).catch(() => null)
-      )
-    );
-
-    const winners = players.filter(p =>
-      (winner === "mafia" &&
-        (p.role === "MAFIA" || p.role === "DON")) ||
-      (winner === "civilians" &&
-        p.role !== "MAFIA" &&
-        p.role !== "DON" &&
-        p.role !== "MANIAC") ||
-      (winner === "maniac" && p.role === "MANIAC")
-    );
-
-    await Promise.all(
-      winners.map(p =>
-        prisma.user.update({
-          where: { id: p.userId },
-          data: {
-            gamesWon: { increment: 1 }
-          }
-        }).catch(() => null)
-      )
-    );
+    }
   }
-
   return winner;
 }
-
 async function resolveNight(roomId: string, dayNumber: number) {
   const [players, actions] = await Promise.all([
     prisma.mafiaPlayer.findMany({
