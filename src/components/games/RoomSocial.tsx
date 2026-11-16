@@ -6,10 +6,12 @@ import { useTelegram } from "@/components/layout/TelegramProvider";
 
 type Player = { userId:string; user:{ firstName:string|null; username:string|null } };
 type Message = { id:string; content:string; createdAt:string; user:{id:string;firstName:string|null;username:string|null} };
+type Reaction = { id:string; emoji:string; createdAt:string; user:{firstName:string|null;username:string|null} };
 
 export function RoomSocial({roomId,players}:{roomId:string;players:Player[]}) {
   const {initData,user}=useTelegram();
   const [messages,setMessages]=useState<Message[]>([]);
+  const [reactions,setReactions]=useState<Reaction[]>([]);
   const [content,setContent]=useState("");
   const [targetId,setTargetId]=useState("");
   const [reason,setReason]=useState("Нарушение правил");
@@ -19,7 +21,7 @@ export function RoomSocial({roomId,players}:{roomId:string;players:Player[]}) {
 
   const load=useCallback(async()=>{
     if(!initData)return;
-    try{const r=await fetch(`/api/hub?type=chat&roomId=${encodeURIComponent(roomId)}`,{headers:{"x-init-data":initData},cache:"no-store"});const d=await r.json();if(r.ok)setMessages(d.messages||[]);}catch{}
+    try{const r=await fetch(`/api/hub?type=chat&roomId=${encodeURIComponent(roomId)}`,{headers:{"x-init-data":initData},cache:"no-store"});const d=await r.json();if(r.ok){setMessages(d.messages||[]);setReactions(d.reactions||[]);}}catch{}
   },[initData,roomId]);
   useEffect(()=>{load();const t=setInterval(load,3000);return()=>clearInterval(t)},[load]);
 
@@ -36,6 +38,7 @@ export function RoomSocial({roomId,players}:{roomId:string;players:Player[]}) {
     </div>
     <div className="flex gap-2"><input value={content} onChange={e=>setContent(e.target.value)} maxLength={500} placeholder="Написать сообщение..." className="min-w-0 flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none"/><button onClick={()=>post("chat_send",{content})} disabled={busy||!content.trim()} className="px-3 rounded-xl bg-white text-black disabled:opacity-40"><Send size={16}/></button></div>
     <div className="flex flex-wrap gap-2">{["👍","😂","❤️","🔥","😮","👎"].map(emoji=><button key={emoji} onClick={()=>post("react",{emoji})} disabled={busy} className="rounded-lg bg-white/5 px-3 py-2 text-lg">{emoji}</button>)}</div>
+    {reactions.length>0&&<div className="flex flex-wrap gap-1">{reactions.map(r=><span key={r.id} className="rounded-full bg-white/5 px-2 py-1 text-xs">{r.emoji} <span className="text-white/35">{r.user.firstName||r.user.username||"Игрок"}</span></span>)}</div>}
     <details className="pt-2 border-t border-white/10"><summary className="cursor-pointer flex items-center gap-2 text-xs text-white/50"><Flag size={14}/>Пожаловаться на игрока</summary>
       <div className="space-y-2 pt-3"><select value={targetId} onChange={e=>setTargetId(e.target.value)} className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-sm text-white"><option value="">Выбери игрока</option>{players.filter(p=>p.userId!==user?.id).map(p=><option key={p.userId} value={p.userId}>{p.user.firstName||p.user.username||"Игрок"}</option>)}</select>
       <select value={reason} onChange={e=>setReason(e.target.value)} className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-sm text-white"><option>Нарушение правил</option><option>Оскорбления</option><option>Спам</option><option>Нечестная игра</option><option>Другое</option></select>
