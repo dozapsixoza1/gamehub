@@ -314,7 +314,6 @@ export async function POST(req: NextRequest) {
         const supplied = typeof body.password === "string" ? createHash("sha256").update(body.password).digest("hex") : "";
         if (supplied !== room.passwordHash) return jsonError("Неверный пароль", 403);
       }
-      if (room.inviteOnly && !body.inviteAccepted) return jsonError("Вход только по приглашению", 403);
 
       if (room.players.length >= room.maxPlayers) {
         return jsonError("Комната заполнена");
