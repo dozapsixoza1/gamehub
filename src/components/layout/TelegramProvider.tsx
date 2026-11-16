@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import type { UserProfile } from "@/types";
 
 interface TelegramContextValue {
@@ -28,6 +28,7 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
   const [initData, setInitData] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isTelegram, setIsTelegram] = useState(false);
+  const referralHandled = useRef(false);
 
   const authenticate = async (data: string) => {
     try {
@@ -43,7 +44,8 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
 
         // Автоматически применяем реферальный код из Telegram Mini App startapp.
         const startParam = (window as any).Telegram?.WebApp?.initDataUnsafe?.start_param || "";
-        if (typeof startParam === "string" && startParam.startsWith("ref_")) {
+        if (!referralHandled.current && typeof startParam === "string" && startParam.startsWith("ref_")) {
+          referralHandled.current = true;
           const code = startParam.slice(4);
           if (code) {
             fetch("/api/progression", {
