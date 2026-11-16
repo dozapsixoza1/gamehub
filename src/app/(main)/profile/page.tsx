@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useTelegram } from "@/components/layout/TelegramProvider";
 import { formatNumber } from "@/lib/utils";
-import { Coins, Gem, Trophy, Gamepad2, Ticket, Gift, Users, Star, History, Crown, Copy, Loader2 } from "lucide-react";
+import { Coins, Gem, Trophy, Gamepad2, Ticket, Gift, Users, Star, History, Crown, Copy } from "lucide-react";
 
 type ProgressData = {
   profile: {
