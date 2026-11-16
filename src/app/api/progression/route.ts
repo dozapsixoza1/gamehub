@@ -42,7 +42,7 @@ async function ensureAchievements() {
 
 export async function GET(req: NextRequest) {
   try {
-    const initData = req.nextUrl.searchParams.get("initData") || "";
+    const initData = req.nextUrl.searchParams.get("initData") || req.headers.get("x-init-data") || "";
     const user = await getAuthedUser(initData);
     if (!user || user.isBanned) {
       return NextResponse.json({ error: "Нет доступа" }, { status: 401 });
