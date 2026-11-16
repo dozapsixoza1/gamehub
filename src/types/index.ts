@@ -12,6 +12,8 @@ export interface UserProfile {
   gamesPlayed: number;
   gamesWon: number;
   isAdmin: boolean;
+  displayName?: string | null;
+  avatarUrl?: string | null;
 }
 
 export interface ShopItemDTO {
