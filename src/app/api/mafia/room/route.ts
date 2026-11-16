@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "crypto";
 import { MafiaRole, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { validateTelegramWebAppData } from "@/lib/telegram";
@@ -264,6 +265,10 @@ export async function POST(req: NextRequest) {
         data: {
           code,
           hostId: user.id,
+          name: typeof body.name === "string" ? body.name.trim().slice(0, 40) || "Комната Мафии" : "Комната Мафии",
+          isPrivate: body.isPrivate === true,
+          inviteOnly: body.inviteOnly === true,
+          passwordHash: typeof body.password === "string" && body.password.length >= 4 ? createHash("sha256").update(body.password).digest("hex") : null,
           maxPlayers: 12,
           minPlayers: 4,
           rolesConfig: getDefaultRolesConfig(8),
@@ -304,6 +309,12 @@ export async function POST(req: NextRequest) {
       if (room.status !== "WAITING") {
         return jsonError("Игра уже началась");
       }
+
+      if (room.passwordHash) {
+        const supplied = typeof body.password === "string" ? createHash("sha256").update(body.password).digest("hex") : "";
+        if (supplied !== room.passwordHash) return jsonError("Неверный пароль", 403);
+      }
+      if (room.inviteOnly && !body.inviteAccepted) return jsonError("Вход только по приглашению", 403);
 
       if (room.players.length >= room.maxPlayers) {
         return jsonError("Комната заполнена");
