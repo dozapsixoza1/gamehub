@@ -14,7 +14,7 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
-    "next": "15.1.3",
+    "next": "^15.5.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "grammy": "^1.35.0",
@@ -39,7 +39,8 @@
     "postcss": "^8.4.49",
     "autoprefixer": "^10.4.20",
     "prisma": "^6.1.0",
+    "tsx": "^4.19.2",
     "eslint": "^9",
-    "eslint-config-next": "15.1.3"
+    "eslint-config-next": "^15.5.7"
   }
 }
