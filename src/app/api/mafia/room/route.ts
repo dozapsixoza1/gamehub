@@ -81,6 +81,16 @@ async function finishIfWinner(roomId: string) {
         }
       }
     }
+    const requiredRoles = ["CIVILIAN","MAFIA","DON","DOCTOR","SHERIFF","MANIAC","COURTESAN"];
+    if (requiredRoles.every(role => (roleStats[role] || 0) > 0)) {
+      const allRoles = { id: "master_of_roles", title: "Мастер всех ролей", description: "Победить за каждую игровую роль", icon: "🎖️", xpReward: 300, coinsReward: 300 };
+      await prisma.achievement.upsert({ where: { id: allRoles.id }, create: allRoles, update: {} });
+      const createdAll = await prisma.userAchievement.createMany({ data: [{ userId: current.id, achievementId: allRoles.id }], skipDuplicates: true });
+      if (createdAll.count > 0) {
+        totalXp += allRoles.xpReward;
+        await prisma.user.update({ where: { id: current.id }, data: { xp: { increment: allRoles.xpReward }, coins: { increment: allRoles.coinsReward }, level: Math.floor(Math.sqrt(totalXp / 100)) + 1 } });
+      }
+    }
     for (const a of defs) {
       if (!a.test(gamesPlayed, gamesWon)) continue;
       await prisma.achievement.upsert({ where: { id: a.id }, create: { id: a.id, title: a.title, description: a.description, icon: a.icon, xpReward: a.xpReward, coinsReward: a.coinsReward }, update: {} });
