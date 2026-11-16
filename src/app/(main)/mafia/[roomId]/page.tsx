@@ -712,6 +712,7 @@ export default function MafiaRoomPage() {
           <span className="font-mono text-white/60">
             {room.code}
           </span>
+          <a className="inline-block mt-2 underline text-red-300" href={`https://t.me/share/url?url=${encodeURIComponent("https://t.me/gamehubesbot")}&text=${encodeURIComponent("Присоединяйся к моей комнате GameHub — Мафия! Код: " + room.code)}`} target="_blank" rel="noreferrer">Пригласить друзей</a>
         </p>
       )}
     </main>
