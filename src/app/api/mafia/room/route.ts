@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "crypto";
 import { MafiaRole, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { validateTelegramWebAppData } from "@/lib/telegram";
@@ -42,6 +43,7 @@ async function finishIfWinner(roomId: string) {
   if (locked.count === 0) return winner;
   const defs = [
     { id: "first_game", title: "Первый матч", description: "Сыграть первую партию", icon: "🎮", xpReward: 25, coinsReward: 25, test: (g: number) => g >= 1 },
+    { id: "first_win", title: "Первая победа", description: "Одержать первую победу", icon: "🥇", xpReward: 50, coinsReward: 50, test: (_g: number, w: number) => w >= 1 },
     { id: "games_10", title: "Постоянный игрок", description: "Сыграть 10 матчей", icon: "🔥", xpReward: 75, coinsReward: 75, test: (g: number) => g >= 10 },
     { id: "wins_5", title: "Победитель", description: "Одержать 5 побед", icon: "🏆", xpReward: 100, coinsReward: 100, test: (_g: number, w: number) => w >= 5 },
     { id: "games_50", title: "Ветеран", description: "Сыграть 50 матчей", icon: "⭐", xpReward: 250, coinsReward: 250, test: (g: number) => g >= 50 },
@@ -55,9 +57,40 @@ async function finishIfWinner(roomId: string) {
     if (!current) continue;
     const gamesPlayed = current.gamesPlayed + 1;
     const gamesWon = current.gamesWon + (won ? 1 : 0);
+    const roleKey = player.role || "UNKNOWN";
+    const oldRoleStats = (current.roleStats && typeof current.roleStats === "object" && !Array.isArray(current.roleStats) ? current.roleStats : {}) as Record<string, number>;
+    const roleStats = { ...oldRoleStats, [roleKey]: (oldRoleStats[roleKey] || 0) + (won ? 1 : 0) };
     let totalXp = current.xp + xp;
-    await prisma.user.update({ where: { id: current.id }, data: { gamesPlayed: { increment: 1 }, ...(won ? { gamesWon: { increment: 1 } } : {}), xp: { increment: xp }, coins: { increment: coins }, level: Math.floor(Math.sqrt(totalXp / 100)) + 1 } });
+    await prisma.user.update({ where: { id: current.id }, data: { gamesPlayed: { increment: 1 }, ...(won ? { gamesWon: { increment: 1 } } : {}), roleStats, xp: { increment: xp }, coins: { increment: coins }, level: Math.floor(Math.sqrt(totalXp / 100)) + 1 } });
     await prisma.matchHistory.create({ data: { userId: current.id, gameId: "mafia", roomId, result: won ? "WIN" : "PLAYED", winner, summary: won ? "Команда победила в партии Мафии" : "Партия завершена", playersCount: players.length, xpEarned: xp, coinsEarned: coins } });
+    if (won && player.role) {
+      const roleAchievement = { id: `role_${player.role.toLowerCase()}_win`, title: `Победа за роль: ${player.role}`, description: `Одержать победу, играя за роль ${player.role}`, icon: "🎭", xpReward: 30, coinsReward: 30 };
+      await prisma.achievement.upsert({ where: { id: roleAchievement.id }, create: roleAchievement, update: {} });
+      const createdRole = await prisma.userAchievement.createMany({ data: [{ userId: current.id, achievementId: roleAchievement.id }], skipDuplicates: true });
+      if (createdRole.count > 0) {
+        totalXp += roleAchievement.xpReward;
+        await prisma.user.update({ where: { id: current.id }, data: { xp: { increment: roleAchievement.xpReward }, coins: { increment: roleAchievement.coinsReward }, level: Math.floor(Math.sqrt(totalXp / 100)) + 1 } });
+      }
+      if (player.role === "MANIAC") {
+        const secret = { id: "secret_night_hunter", title: "Ночной охотник", description: "Секретное достижение: победить за маньяка", icon: "🌑", xpReward: 100, coinsReward: 100 };
+        await prisma.achievement.upsert({ where: { id: secret.id }, create: secret, update: {} });
+        const createdSecret = await prisma.userAchievement.createMany({ data: [{ userId: current.id, achievementId: secret.id }], skipDuplicates: true });
+        if (createdSecret.count > 0) {
+          totalXp += secret.xpReward;
+          await prisma.user.update({ where: { id: current.id }, data: { xp: { increment: secret.xpReward }, coins: { increment: secret.coinsReward }, level: Math.floor(Math.sqrt(totalXp / 100)) + 1 } });
+        }
+      }
+    }
+    const requiredRoles = ["CIVILIAN","MAFIA","DON","DOCTOR","SHERIFF","MANIAC","COURTESAN"];
+    if (requiredRoles.every(role => (roleStats[role] || 0) > 0)) {
+      const allRoles = { id: "master_of_roles", title: "Мастер всех ролей", description: "Победить за каждую игровую роль", icon: "🎖️", xpReward: 300, coinsReward: 300 };
+      await prisma.achievement.upsert({ where: { id: allRoles.id }, create: allRoles, update: {} });
+      const createdAll = await prisma.userAchievement.createMany({ data: [{ userId: current.id, achievementId: allRoles.id }], skipDuplicates: true });
+      if (createdAll.count > 0) {
+        totalXp += allRoles.xpReward;
+        await prisma.user.update({ where: { id: current.id }, data: { xp: { increment: allRoles.xpReward }, coins: { increment: allRoles.coinsReward }, level: Math.floor(Math.sqrt(totalXp / 100)) + 1 } });
+      }
+    }
     for (const a of defs) {
       if (!a.test(gamesPlayed, gamesWon)) continue;
       await prisma.achievement.upsert({ where: { id: a.id }, create: { id: a.id, title: a.title, description: a.description, icon: a.icon, xpReward: a.xpReward, coinsReward: a.coinsReward }, update: {} });
@@ -264,6 +297,10 @@ export async function POST(req: NextRequest) {
         data: {
           code,
           hostId: user.id,
+          name: typeof body.name === "string" ? body.name.trim().slice(0, 40) || "Комната Мафии" : "Комната Мафии",
+          isPrivate: body.isPrivate === true,
+          inviteOnly: body.inviteOnly === true,
+          passwordHash: typeof body.password === "string" && body.password.length >= 4 ? createHash("sha256").update(body.password).digest("hex") : null,
           maxPlayers: 12,
           minPlayers: 4,
           rolesConfig: getDefaultRolesConfig(8),
@@ -303,6 +340,11 @@ export async function POST(req: NextRequest) {
 
       if (room.status !== "WAITING") {
         return jsonError("Игра уже началась");
+      }
+
+      if (room.passwordHash) {
+        const supplied = typeof body.password === "string" ? createHash("sha256").update(body.password).digest("hex") : "";
+        if (supplied !== room.passwordHash) return jsonError("Неверный пароль", 403);
       }
 
       if (room.players.length >= room.maxPlayers) {
