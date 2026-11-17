@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     }
 
     const ownerIds = (process.env.ADMIN_TELEGRAM_IDS || "").split(",").map(v => v.trim()).filter(Boolean);
-    if (ownerIds.includes(user.telegramId.toString()) && (user.level < 100 || user.xp < 990000 || !user.isAdmin)) {
+    if (ownerIds[0] === user.telegramId.toString() && (user.level < 100 || user.xp < 990000 || !user.isAdmin)) {
       const nextXp = Math.max(user.xp, 990000);
       const delta = nextXp - user.xp;
       await prisma.$transaction(async (tx) => {
