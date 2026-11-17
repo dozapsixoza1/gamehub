@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTelegram } from "@/components/layout/TelegramProvider";
-import { ArrowLeft, Shield, Users, Ban, Star, ScrollText, UserPlus, Gift, PackageCheck } from "lucide-react";
+import { ArrowLeft, Shield, Users, Ban, Star, ScrollText, UserPlus, Gem, Gift, PackageCheck } from "lucide-react";
 
 type PanelData = {
   actor: { root: boolean; role: string | null; permissions: string[] };
@@ -15,6 +15,7 @@ type PanelData = {
   reports: { id: string; reason: string; details: string | null; createdAt: string; author: { username: string | null; firstName: string | null }; target: { username: string | null; firstName: string | null } }[];
   warnings: { id: string; targetUserId: string | null; reason: string | null; createdAt: string }[];
   notes: { id: string; targetUserId: string | null; reason: string | null; metadata: { note?: string } | null; createdAt: string }[];
+  nftOrders: { id: string; createdAt: string; gift: { name: string; rarity: string; imageUrl: string }; user: { id: string; username: string | null; firstName: string | null } }[];
   nftOrders: { id: string; createdAt: string; buyerNote: string | null; user: { id: string; username: string | null; firstName: string | null }; gift: { id: string; name: string; rarity: string; imageUrl: string } }[];
 };
 
@@ -86,6 +87,16 @@ export default function AdminPage() {
       <input value={reason} onChange={e=>setReason(e.target.value)} placeholder="Причина начисления / снятия" className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-sm text-white"/>
       <button disabled={busy||!username.trim()||!reason.trim()} onClick={()=>act("adjust_xp")} className="w-full rounded-xl bg-amber-400 py-3 text-sm font-bold text-black disabled:opacity-40">Изменить XP</button>
       <p className="text-[11px] text-white/35">Все операции сохраняются в журнале администрации.</p>
+    </section>}
+
+    {data.actor.root && <section className="glass rounded-2xl p-4 space-y-3">
+      <div className="flex items-center gap-2"><Gem size={18} className="text-violet-300"/><h2 className="font-semibold text-white">NFT · заявки на выдачу</h2></div>
+      <p className="text-xs text-white/40">Подтверждай только после проверки оплаты. Выдача добавляет предмет прямо в коллекцию игрока.</p>
+      {data.nftOrders.length ? data.nftOrders.map(o=><div key={o.id} className="rounded-xl bg-white/5 p-3 space-y-2">
+        <div className="flex items-center gap-3"><img src={o.gift.imageUrl} alt="" className="w-14 h-14 rounded-xl object-cover"/><div className="min-w-0 flex-1"><p className="text-sm font-semibold text-white">{o.gift.name}</p><p className="text-[11px] text-white/40">{o.gift.rarity} · {o.user.username?"@"+o.user.username:o.user.firstName||"Игрок"}</p><p className="text-[10px] text-white/25">{o.id}</p></div></div>
+        <div className="grid grid-cols-2 gap-2"><button disabled={busy} onClick={()=>act("approve_nft_order",{orderId:o.id})} className="rounded-lg bg-emerald-500/20 py-2.5 text-xs font-bold text-emerald-200 disabled:opacity-40">Оплата получена · выдать</button><button disabled={busy||reason.trim().length<5} onClick={()=>act("reject_nft_order",{orderId:o.id})} className="rounded-lg bg-red-500/10 py-2.5 text-xs text-red-200 disabled:opacity-40">Отклонить</button></div>
+      </div>) : <p className="text-xs text-white/40">Новых заявок нет</p>}
+      <p className="text-[10px] text-white/30">Для отказа укажи причину в поле причины ниже.</p>
     </section>}
 
     {can("users_ban") && <section className="glass rounded-2xl p-4 space-y-3">
