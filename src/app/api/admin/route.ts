@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
     const actor = await getActor(req.headers.get("x-init-data") || req.nextUrl.searchParams.get("initData") || "");
     if (!actor || !allowed(actor, "admin_access")) return NextResponse.json({ error: "Нет доступа к администрации" }, { status: 403 });
     const canViewUsers = allowed(actor, "users_view");
-    const [usersCount, bannedCount, verifiedCount, openReports, reports, staff, logs, users, warnings, notes] = await Promise.all([
+    const [usersCount, bannedCount, verifiedCount, openReports, reports, staff, logs, users, warnings, notes, nftOrders] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({ where: { isBanned: true } }),
       prisma.user.count({ where: { isVerified: true } }),
@@ -74,12 +74,13 @@ export async function GET(req: NextRequest) {
       canViewUsers ? prisma.user.findMany({ orderBy: { createdAt: "desc" }, take: 50, select: { id: true, username: true, firstName: true, xp: true, level: true, isBanned: true, isVerified: true, isAdmin: true } }) : Promise.resolve([]),
       allowed(actor, "users_ban") ? prisma.adminActionLog.findMany({ where: { action: "warning_issued" }, orderBy: { createdAt: "desc" }, take: 30 }) : Promise.resolve([]),
       allowed(actor, "logs_view") ? prisma.adminActionLog.findMany({ where: { action: "admin_note_added" }, orderBy: { createdAt: "desc" }, take: 30 }) : Promise.resolve([]),
+      actor.root ? prisma.nftOrder.findMany({ where: { status: "PENDING" }, include: { user: { select: { id: true, username: true, firstName: true } }, gift: true }, orderBy: { createdAt: "asc" }, take: 100 }) : Promise.resolve([]),
     ]);
     return NextResponse.json({
       actor: { root: actor.root, role: actor.role, permissions: actor.permissions },
       roles: Object.entries(ROLE_LABELS).map(([id, label]) => ({ id, label, permissions: ROLE_PERMISSIONS[id] })),
       stats: { users: usersCount, banned: bannedCount, verified: verifiedCount, openReports },
-      staff, logs, users, reports, warnings, notes,
+      staff, logs, users, reports, warnings, notes, nftOrders,
     });
   } catch (error) {
     console.error("Admin GET:", error);
@@ -116,6 +117,20 @@ export async function POST(req: NextRequest) {
       });
       await logAction(actor.telegramId, "staff_assigned", target.id, reason || "Назначение на должность", { role, roleLabel: ROLE_LABELS[role] });
       return NextResponse.json({ success: true, message: `@${target.username} назначен: ${ROLE_LABELS[role]}` });
+    }
+
+    if (action === "issue_nft") {
+      if (!actor.root) return NextResponse.json({ error: "Выдавать NFT может только владелец проекта" }, { status: 403 });
+      const orderId = String(body.orderId || "");
+      const order = await prisma.nftOrder.findUnique({ where: { id: orderId }, include: { gift: true } });
+      if (!order || order.status !== "PENDING") return NextResponse.json({ error: "Заявка не найдена или уже обработана" }, { status: 404 });
+      const serialNumber = (await prisma.userNft.count({ where: { giftId: order.giftId } })) + 1;
+      await prisma.$transaction([
+        prisma.userNft.create({ data: { userId: order.userId, giftId: order.giftId, orderId: order.id, serialNumber } }),
+        prisma.nftOrder.update({ where: { id: order.id }, data: { status: "DELIVERED", adminNote: reason || "Выдано владельцем" } }),
+        prisma.adminActionLog.create({ data: { actorTelegramId: actor.telegramId, targetUserId: order.userId, action: "nft_issued", reason: reason || "NFT выдан", metadata: { orderId, giftId: order.giftId, serialNumber } } })
+      ]);
+      return NextResponse.json({ success: true, message: order.gift.name + " выдан игроку" });
     }
 
     if (action === "adjust_xp") {
