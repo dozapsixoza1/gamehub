@@ -46,7 +46,12 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
           .then(settingsData => {
             const settings = settingsData.settings;
             if (settings) {
-              document.documentElement.dataset.theme = settings.theme || "dark";
+              const root = document.documentElement;
+              root.dataset.theme = settings.theme || "dark";
+              root.dataset.accent = settings.accentColor || "ruby";
+              root.dataset.background = settings.backgroundStyle || "aurora";
+              root.dataset.compact = settings.compactMode ? "true" : "false";
+              root.dataset.animations = settings.animations === false ? "false" : "true";
               setUser(current => current ? { ...current, displayName: settings.displayName, avatarUrl: settings.avatarUrl } : current);
             }
           })

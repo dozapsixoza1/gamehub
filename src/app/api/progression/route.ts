@@ -17,11 +17,11 @@ async function getAuthedUser(initData: string) {
 }
 
 const achievementDefinitions = [
-  { id: "first_game", title: "Первый матч", description: "Сыграть первую партию", icon: "🎮", xpReward: 25, coinsReward: 25 },
-  { id: "games_10", title: "Постоянный игрок", description: "Сыграть 10 матчей", icon: "🔥", xpReward: 75, coinsReward: 75 },
-  { id: "wins_5", title: "Победитель", description: "Одержать 5 побед", icon: "🏆", xpReward: 100, coinsReward: 100 },
-  { id: "games_50", title: "Ветеран", description: "Сыграть 50 матчей", icon: "⭐", xpReward: 250, coinsReward: 250 },
-  { id: "wins_25", title: "Легенда", description: "Одержать 25 побед", icon: "👑", xpReward: 500, coinsReward: 500 },
+  { id: "first_game", title: "Первый матч", description: "Сыграть первую партию", icon: "🪩", xpReward: 25, coinsReward: 25 },
+  { id: "games_10", title: "Постоянный игрок", description: "Сыграть 10 матчей", icon: "🪬", xpReward: 75, coinsReward: 75 },
+  { id: "wins_5", title: "Победитель", description: "Одержать 5 побед", icon: "💠", xpReward: 100, coinsReward: 100 },
+  { id: "games_50", title: "Ветеран", description: "Сыграть 50 матчей", icon: "🪽", xpReward: 250, coinsReward: 250 },
+  { id: "wins_25", title: "Легенда", description: "Одержать 25 побед", icon: "🪐", xpReward: 500, coinsReward: 500 },
 ];
 
 async function ensureAchievements() {
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
 
     await ensureAchievements();
 
-    const [achievements, history, leaderboard, referrals] = await Promise.all([
+    const [achievements, history, leaderboard, referrals, xpTransactions] = await Promise.all([
       prisma.userAchievement.findMany({
         where: { userId: user.id },
         include: { achievement: true },
@@ -55,6 +55,7 @@ export async function GET(req: NextRequest) {
         select: { id: true, username: true, firstName: true, photoUrl: true, xp: true, level: true, gamesPlayed: true, gamesWon: true },
       }),
       prisma.user.count({ where: { referredById: user.id } }),
+      prisma.xpTransaction.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 20, select: { id: true, amount: true, balanceAfter: true, source: true, reason: true, createdAt: true } }),
     ]);
 
     const nextLevelXp = user.level * user.level * LEVEL_STEP;
@@ -82,6 +83,7 @@ export async function GET(req: NextRequest) {
       achievements,
       history,
       leaderboard,
+      xpTransactions,
     });
   } catch (error) {
     console.error("Progression GET:", error);

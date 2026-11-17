@@ -88,8 +88,10 @@ export async function POST(req: NextRequest) {
     if (!me) return NextResponse.json({ error: "Нет доступа" }, { status: 401 });
 
     if (body.action === "save_settings") {
-      const allowedThemes = ["dark", "midnight", "red", "light"];
+      const allowedThemes = ["dark", "midnight", "red", "light", "ocean", "forest", "amoled"];
       const allowedLanguages = ["ru", "en"];
+      const allowedAccents = ["ruby", "violet", "cyan", "gold", "emerald"];
+      const allowedBackgrounds = ["aurora", "plain", "mesh"];
       const settings = await prisma.userSettings.upsert({
         where: { userId: me.id },
         create: {
@@ -100,6 +102,10 @@ export async function POST(req: NextRequest) {
           soundEnabled: body.soundEnabled !== false,
           notifications: body.notifications !== false,
           language: allowedLanguages.includes(body.language) ? body.language : "ru",
+          accentColor: allowedAccents.includes(body.accentColor) ? body.accentColor : "ruby",
+          compactMode: body.compactMode === true,
+          animations: body.animations !== false,
+          backgroundStyle: allowedBackgrounds.includes(body.backgroundStyle) ? body.backgroundStyle : "aurora",
         },
         update: {
           ...(typeof body.displayName === "string" ? { displayName: body.displayName.trim().slice(0,32) || null } : {}),
@@ -108,6 +114,10 @@ export async function POST(req: NextRequest) {
           ...(typeof body.soundEnabled === "boolean" ? { soundEnabled: body.soundEnabled } : {}),
           ...(typeof body.notifications === "boolean" ? { notifications: body.notifications } : {}),
           ...(allowedLanguages.includes(body.language) ? { language: body.language } : {}),
+          ...(allowedAccents.includes(body.accentColor) ? { accentColor: body.accentColor } : {}),
+          ...(typeof body.compactMode === "boolean" ? { compactMode: body.compactMode } : {}),
+          ...(typeof body.animations === "boolean" ? { animations: body.animations } : {}),
+          ...(allowedBackgrounds.includes(body.backgroundStyle) ? { backgroundStyle: body.backgroundStyle } : {}),
         },
       });
       return NextResponse.json({ success: true, settings });
@@ -126,7 +136,7 @@ export async function POST(req: NextRequest) {
     if (body.action === "react") {
       const roomId = String(body.roomId || "");
       const emoji = String(body.emoji || "");
-      if (!["👍","😂","❤️","🔥","😮","👎"].includes(emoji)) return NextResponse.json({ error: "Недопустимая реакция" }, { status: 400 });
+      if (!["🪬","🪷","🫧","🪽","💠","🪐"].includes(emoji)) return NextResponse.json({ error: "Недопустимая реакция" }, { status: 400 });
       const member = await prisma.mafiaPlayer.findFirst({ where: { roomId, userId: me.id } });
       if (!member) return NextResponse.json({ error: "Ты не участник комнаты" }, { status: 403 });
       const reaction = await prisma.roomReaction.create({ data: { roomId, userId: me.id, emoji } });
