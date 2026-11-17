@@ -1,0 +1,10 @@
+"use client";
+import {useState} from "react";
+import {BadgeCheck,ShieldCheck} from "lucide-react";
+import {useTelegram} from "@/components/layout/TelegramProvider";
+export function VerificationManager(){
+ const {initData,user}=useTelegram(); const [username,setUsername]=useState(""); const [busy,setBusy]=useState(false); const [message,setMessage]=useState(""); const [error,setError]=useState(false);
+ if(!user?.isAdmin)return null;
+ const update=async(verified:boolean)=>{if(!initData||!username.trim()||busy)return;setBusy(true);setMessage("");try{const r=await fetch("/api/admin/verification",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({initData,username:username.trim().replace(/^@/,""),verified})});const d=await r.json();if(!r.ok)throw new Error(d.error||"Не удалось изменить статус");setError(false);setMessage(d.message||"Готово");setUsername("");}catch(e){setError(true);setMessage(e instanceof Error?e.message:"Ошибка сети");}finally{setBusy(false);}};
+ return <section className="glass rounded-2xl p-4 space-y-3"><div className="flex items-center gap-2 text-white"><ShieldCheck size={18} className="text-red-400"/><h2 className="font-semibold">Управление верификацией</h2></div><p className="text-xs text-white/45">Введи Telegram username игрока, например @username.</p><input value={username} onChange={e=>setUsername(e.target.value)} placeholder="@username" maxLength={64} className="w-full bg-black/20 border border-white/10 rounded-xl px-3 py-3 text-sm text-white outline-none"/><div className="grid grid-cols-2 gap-2"><button onClick={()=>update(true)} disabled={busy||!username.trim()} className="rounded-xl bg-blue-600/90 py-3 text-sm font-semibold text-white disabled:opacity-40"><BadgeCheck size={15} className="inline mr-1"/>Выдать галочку</button><button onClick={()=>update(false)} disabled={busy||!username.trim()} className="rounded-xl bg-white/10 py-3 text-sm font-semibold text-white disabled:opacity-40">Снять галочку</button></div>{message&&<p className={`text-xs ${error?"text-red-400":"text-emerald-400"}`}>{message}</p>}</section>;
+}
