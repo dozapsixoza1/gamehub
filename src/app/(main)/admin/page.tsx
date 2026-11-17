@@ -63,7 +63,7 @@ export default function AdminPage() {
       {[["Игроки",data.stats.users,Users],["Блокировки",data.stats.banned,Ban],["Верификация",data.stats.verified,Star],["Открытые жалобы",data.stats.openReports,ScrollText]].map(([label,value,Icon]: any)=><div key={label} className="glass rounded-xl p-3"><div className="flex items-center gap-2 text-xs text-white/45"><Icon size={14}/>{label}</div><p className="text-2xl font-black text-white mt-1">{value}</p></div>)}
     </div>
 
-    {can("staff_manage") && <section className="glass rounded-2xl p-4 space-y-3">
+    {data.actor.root && can("staff_manage") && <section className="glass rounded-2xl p-4 space-y-3">
       <div className="flex items-center gap-2 text-white"><UserPlus size={18}/><h2 className="font-semibold">Состав администрации</h2></div>
       <input value={username} onChange={e=>setUsername(e.target.value)} placeholder="@username игрока" className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-sm text-white"/>
       <select value={role} onChange={e=>setRole(e.target.value)} className="w-full bg-[#171717] border border-white/10 rounded-xl p-3 text-sm text-white">{data.roles.map(r=><option key={r.id} value={r.id}>{r.label}</option>)}</select>
