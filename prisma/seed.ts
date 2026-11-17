@@ -263,7 +263,7 @@ const NFT_GIFTS = [
     "imageUrl": "/nft/phoenix-egg.svg",
     "sortOrder": 20
   }
-];
+].map((gift) => ({ ...gift, supply: gift.rarity === "LIMITED" ? 25 : null }));
 
 async function main() {
   console.log("Seeding shop items...");
