@@ -300,7 +300,7 @@ model Achievement {
   id          String   @id
   title       String
   description String
-  icon        String   @default("🏆")
+  icon        String   @default("💠")
   xpReward    Int      @default(0)
   coinsReward Int      @default(0)
   users       UserAchievement[]
