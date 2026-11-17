@@ -12,6 +12,7 @@ export interface UserProfile {
   gamesPlayed: number;
   gamesWon: number;
   isAdmin: boolean;
+  isVerified: boolean;
   displayName?: string | null;
   avatarUrl?: string | null;
 }
