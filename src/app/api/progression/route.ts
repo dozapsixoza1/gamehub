@@ -36,6 +36,21 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Нет доступа" }, { status: 401 });
     }
 
+    const ownerIds = (process.env.ADMIN_TELEGRAM_IDS || "").split(",").map(v => v.trim()).filter(Boolean);
+    if (ownerIds[0] === user.telegramId.toString() && (user.level < 100 || user.xp < 990000 || !user.isAdmin)) {
+      const nextXp = Math.max(user.xp, 990000);
+      const delta = nextXp - user.xp;
+      await prisma.$transaction(async (tx) => {
+        await tx.user.update({ where: { id: user.id }, data: { xp: nextXp, level: 100, isAdmin: true } });
+        if (delta > 0) {
+          await tx.xpTransaction.create({ data: { userId: user.id, amount: delta, balanceAfter: nextXp, source: "OWNER_REWARD", reason: "Установка 100-го уровня владельцу проекта" } });
+        }
+      });
+      user.xp = nextXp;
+      user.level = 100;
+      user.isAdmin = true;
+    }
+
     await ensureAchievements();
 
     const [achievements, history, leaderboard, referrals, xpTransactions] = await Promise.all([

@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useTelegram } from "@/components/layout/TelegramProvider";
+import Link from "next/link";
 import { formatNumber } from "@/lib/utils";
-import { Coins, Gem, ShoppingBag } from "lucide-react";
+import { Coins, Gem, ShoppingBag, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ShopItemDTO } from "@/types";
 
@@ -76,6 +77,13 @@ export default function ShopPage() {
           Улучшения и предметы для игр
         </p>
       </div>
+
+      <Link href="/nft" className="relative mb-5 flex items-center gap-3 overflow-hidden rounded-2xl border border-violet-300/20 bg-gradient-to-r from-[#20143a] via-[#17142a] to-[#0b1e2c] p-4">
+        <div className="absolute -right-5 -top-8 h-28 w-28 rounded-full bg-violet-500/20 blur-2xl"/>
+        <div className="relative rounded-xl bg-white/10 p-3 text-violet-200"><Gem size={23}/></div>
+        <div className="relative min-w-0 flex-1"><p className="text-[10px] uppercase tracking-[.22em] text-violet-200/70">Exclusive collection</p><p className="font-bold text-white">NFT Gifts</p><p className="text-[11px] text-white/45">Уникальные арты · 4 уровня редкости</p></div>
+        <Sparkles size={18} className="relative text-violet-200"/>
+      </Link>
 
       {/* Balance */}
       {user && (

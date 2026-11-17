@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
     const actor = await getActor(req.headers.get("x-init-data") || req.nextUrl.searchParams.get("initData") || "");
     if (!actor || !allowed(actor, "admin_access")) return NextResponse.json({ error: "Нет доступа к администрации" }, { status: 403 });
     const canViewUsers = allowed(actor, "users_view");
-    const [usersCount, bannedCount, verifiedCount, openReports, reports, staff, logs, users, warnings, notes] = await Promise.all([
+    const [usersCount, bannedCount, verifiedCount, openReports, reports, staff, logs, users, warnings, notes, nftOrders, messageReports] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({ where: { isBanned: true } }),
       prisma.user.count({ where: { isVerified: true } }),
@@ -74,12 +74,14 @@ export async function GET(req: NextRequest) {
       canViewUsers ? prisma.user.findMany({ orderBy: { createdAt: "desc" }, take: 50, select: { id: true, username: true, firstName: true, xp: true, level: true, isBanned: true, isVerified: true, isAdmin: true } }) : Promise.resolve([]),
       allowed(actor, "users_ban") ? prisma.adminActionLog.findMany({ where: { action: "warning_issued" }, orderBy: { createdAt: "desc" }, take: 30 }) : Promise.resolve([]),
       allowed(actor, "logs_view") ? prisma.adminActionLog.findMany({ where: { action: "admin_note_added" }, orderBy: { createdAt: "desc" }, take: 30 }) : Promise.resolve([]),
+      actor.root ? prisma.nftOrder.findMany({ where: { status: "PENDING" }, include: { user: { select: { id: true, username: true, firstName: true } }, gift: true }, orderBy: { createdAt: "asc" }, take: 100 }) : Promise.resolve([]),
+      allowed(actor, "reports_manage") ? prisma.messageReport.findMany({ where: { status: "OPEN" }, include: { reporter: { select: { username: true, firstName: true } }, message: { include: { sender: { select: { username: true, firstName: true } }, recipient: { select: { username: true, firstName: true } } } } }, orderBy: { createdAt: "desc" }, take: 50 }) : Promise.resolve([]),
     ]);
     return NextResponse.json({
       actor: { root: actor.root, role: actor.role, permissions: actor.permissions },
       roles: Object.entries(ROLE_LABELS).map(([id, label]) => ({ id, label, permissions: ROLE_PERMISSIONS[id] })),
       stats: { users: usersCount, banned: bannedCount, verified: verifiedCount, openReports },
-      staff, logs, users, reports, warnings, notes,
+      staff, logs, users, reports, warnings, notes, nftOrders, messageReports,
     });
   } catch (error) {
     console.error("Admin GET:", error);
@@ -116,6 +118,33 @@ export async function POST(req: NextRequest) {
       });
       await logAction(actor.telegramId, "staff_assigned", target.id, reason || "Назначение на должность", { role, roleLabel: ROLE_LABELS[role] });
       return NextResponse.json({ success: true, message: `@${target.username} назначен: ${ROLE_LABELS[role]}` });
+    }
+
+    if (action === "resolve_message_report") {
+      if (!allowed(actor, "reports_manage")) return NextResponse.json({ error: "Нет права разбирать жалобы" }, { status: 403 });
+      const reportId = String(body.reportId || "");
+      const status = body.status === "REJECTED" ? "REJECTED" : "RESOLVED";
+      if (!reportId) return NextResponse.json({ error: "Не указана жалоба" }, { status: 400 });
+      await prisma.messageReport.update({ where: { id: reportId }, data: { status } });
+      await logAction(actor.telegramId, "message_report_" + status.toLowerCase(), null, reason || "Жалоба на личное сообщение", { reportId });
+      return NextResponse.json({ success: true, message: "Жалоба на сообщение обработана" });
+    }
+
+    if (action === "issue_nft") {
+      if (!actor.root) return NextResponse.json({ error: "Выдавать NFT может только владелец проекта" }, { status: 403 });
+      const orderId = String(body.orderId || "");
+      const order = await prisma.nftOrder.findUnique({ where: { id: orderId }, include: { gift: true } });
+      if (!order || order.status !== "PENDING") return NextResponse.json({ error: "Заявка не найдена или уже обработана" }, { status: 404 });
+      await prisma.$transaction(async (tx) => {
+        const changed = await tx.nftOrder.updateMany({ where: { id: order.id, status: "PENDING" }, data: { status: "DELIVERED", adminNote: reason || "Выдано владельцем после подтверждения оплаты" } });
+        if (changed.count !== 1) throw new Error("Заявка уже обработана");
+        const gift = await tx.nftGift.update({ where: { id: order.giftId }, data: { issued: { increment: 1 } } });
+        if (gift.supply !== null && gift.issued > gift.supply) throw new Error("Лимит выпуска этого подарка исчерпан");
+        const serialNumber = gift.issued;
+        await tx.userNft.create({ data: { userId: order.userId, giftId: order.giftId, orderId: order.id, serialNumber } });
+        await tx.adminActionLog.create({ data: { actorTelegramId: actor.telegramId, targetUserId: order.userId, action: "nft_issued", reason: reason || "NFT выдан после подтверждения оплаты", metadata: { orderId, giftId: order.giftId, serialNumber } } });
+      });
+      return NextResponse.json({ success: true, message: order.gift.name + " выдан игроку" });
     }
 
     if (action === "adjust_xp") {
@@ -167,6 +196,16 @@ export async function POST(req: NextRequest) {
       if (!target) return NextResponse.json({ error: "Игрок не найден" }, { status: 404 });
       await logAction(actor.telegramId, "admin_note_added", target.id, "Внутренняя заметка", { note: reason });
       return NextResponse.json({ success: true, message: "Внутренняя заметка сохранена" });
+    }
+
+    if (action === "reject_nft_order") {
+      if (!actor.root) return NextResponse.json({ error: "Управлять NFT-заявками может только владелец проекта" }, { status: 403 });
+      const orderId = String(body.orderId || "");
+      if (!orderId || reason.length < 5) return NextResponse.json({ error: "Укажи заявку и причину отказа" }, { status: 400 });
+      const changed = await prisma.nftOrder.updateMany({ where: { id: orderId, status: "PENDING" }, data: { status: "CANCELLED", adminNote: reason } });
+      if (!changed.count) return NextResponse.json({ error: "Заявка уже обработана или не найдена" }, { status: 404 });
+      await logAction(actor.telegramId, "nft_order_cancelled", null, reason, { orderId });
+      return NextResponse.json({ success: true, message: "Заявка отклонена" });
     }
 
     if (action === "resolve_report") {

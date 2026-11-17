@@ -22,10 +22,10 @@ export async function POST(req: NextRequest) {
     }
 
     const telegramId = BigInt(tgUser.id);
-    const adminIds = (process.env.ADMIN_TELEGRAM_IDS || "")
-      .split(",")
-      .map((id) => Number(id.trim()))
-      .filter(Boolean);
+    const adminIds = (process.env.ADMIN_TELEGRAM_IDS || "").split(",").map((id) => id.trim()).filter((id) => /^\d+$/.test(id));
+    const isOwner = adminIds.includes(telegramId.toString());
+    const isPrimaryOwner = adminIds[0] === telegramId.toString();
+    const ownerXp = 990000;
 
     let user = await prisma.user.findUnique({
       where: { telegramId },
@@ -40,7 +40,8 @@ export async function POST(req: NextRequest) {
           lastName: tgUser.last_name,
           languageCode: tgUser.language_code || "ru",
           photoUrl: tgUser.photo_url,
-          isAdmin: adminIds.includes(tgUser.id),
+          isAdmin: isOwner,
+          ...(isPrimaryOwner ? { xp: ownerXp, level: 100 } : {}),
         },
       });
     } else {
@@ -52,9 +53,19 @@ export async function POST(req: NextRequest) {
           lastName: tgUser.last_name,
           photoUrl: tgUser.photo_url,
           lastActiveAt: new Date(),
-          isAdmin: adminIds.includes(tgUser.id) || user.isAdmin,
+          isAdmin: isOwner || user.isAdmin,
+          ...(isPrimaryOwner && user.level < 100 ? { xp: Math.max(user.xp, ownerXp), level: 100 } : {}),
         },
       });
+    }
+
+    if (isPrimaryOwner && user.level < 100) {
+      const nextXp = Math.max(user.xp, ownerXp);
+      await prisma.$transaction([
+        prisma.user.update({ where: { id: user.id }, data: { xp: nextXp, level: 100 } }),
+        prisma.xpTransaction.create({ data: { userId: user.id, amount: nextXp - user.xp, balanceAfter: nextXp, source: "OWNER_LEVEL", reason: "Стартовый 100-й уровень владельца" } }),
+      ]);
+      user = { ...user, xp: nextXp, level: 100 };
     }
 
     if (user.isBanned) {

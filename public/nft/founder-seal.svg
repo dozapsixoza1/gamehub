@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+<defs>
+ <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#080b18"/><stop offset=".52" stop-color="#92400e"/><stop offset="1" stop-color="#090a13"/></linearGradient>
+ <radialGradient id="orb"><stop stop-color="#fcd34d" stop-opacity=".55"/><stop offset="1" stop-color="#fcd34d" stop-opacity="0"/></radialGradient>
+ <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff"/><stop offset=".28" stop-color="#fcd34d"/><stop offset=".65" stop-color="#92400e"/><stop offset="1" stop-color="#fff"/></linearGradient>
+ <filter id="glow"><feGaussianBlur stdDeviation="13" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<rect width="640" height="640" rx="44" fill="url(#bg)"/>
+<circle cx="320" cy="310" r="240" fill="url(#orb)"/>
+<circle cx="320" cy="310" r="225" fill="none" stroke="#fcd34d" stroke-opacity=".24" stroke-width="1.5"/>
+<circle cx="320" cy="310" r="205" fill="none" stroke="#fff" stroke-opacity=".12" stroke-dasharray="2 12"/>
+<path d="M80 110 L110 80 M530 80 L560 110 M80 530 L110 560 M530 560 L560 530" stroke="#fcd34d" stroke-opacity=".7" stroke-width="3"/>
+<g fill="#fff" opacity=".75"><circle cx="150" cy="175" r="3"/><circle cx="490" cy="170" r="2"/><circle cx="115" cy="360" r="2"/><circle cx="530" cy="390" r="3"/><circle cx="220" cy="505" r="2"/><circle cx="425" cy="500" r="2"/></g>
+<g filter="url(#glow)" stroke="url(#metal)" stroke-width="13" stroke-linejoin="round" stroke-linecap="round" fill="#92400e" fill-opacity=".24"><path d="M 320 145 A 175 175 0 1 0 320 495 A 175 175 0 1 0 320 145 M 320 205 L 365 295 L 465 320 L 365 345 L 320 435 L 275 345 L 175 320 L 275 295 Z"/></g>
+<g fill="none" stroke="#fff" stroke-opacity=".48" stroke-width="2"><path d="M320 70 V95 M320 525 V550 M70 320 H95 M525 320 H550"/><circle cx="320" cy="320" r="165"/></g>
+<text x="320" y="585" text-anchor="middle" fill="#fff" fill-opacity=".85" font-family="Arial,sans-serif" font-size="20" font-weight="700" letter-spacing="5">FOUNDER SEAL</text>
+</svg>

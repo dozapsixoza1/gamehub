@@ -100,6 +100,8 @@ const SHOP_ITEMS = [
   },
 ];
 
+
+
 async function main() {
   console.log("Seeding shop items...");
 
