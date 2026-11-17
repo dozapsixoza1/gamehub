@@ -39,11 +39,11 @@ export async function GET(req: NextRequest) {
       ]);
       const messages = blockedByMe || blockedMe ? [] : await prisma.directMessage.findMany({
         where: { OR: [{ senderId: me.id, recipientId: target.id }, { senderId: target.id, recipientId: me.id }] },
-        orderBy: { createdAt: "asc" }, take: 100,
+        orderBy: { createdAt: "desc" }, take: 100,
         include: { sender: { select: { id: true, firstName: true, username: true } } }
       });
       await prisma.directMessage.updateMany({ where: { senderId: target.id, recipientId: me.id, readAt: null }, data: { readAt: new Date() } });
-      return NextResponse.json({ target, messages, blockedByMe: !!blockedByMe, blockedMe: !!blockedMe });
+      return NextResponse.json({ target, messages: messages.reverse(), blockedByMe: !!blockedByMe, blockedMe: !!blockedMe });
     }
 
     const recent = await prisma.directMessage.findMany({
