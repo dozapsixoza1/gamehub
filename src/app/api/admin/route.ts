@@ -76,11 +76,12 @@ export async function GET(req: NextRequest) {
       allowed(actor, "logs_view") ? prisma.adminActionLog.findMany({ where: { action: "admin_note_added" }, orderBy: { createdAt: "desc" }, take: 30 }) : Promise.resolve([]),
       actor.root ? prisma.nftOrder.findMany({ where: { status: "PENDING" }, include: { user: { select: { id: true, username: true, firstName: true } }, gift: true }, orderBy: { createdAt: "asc" }, take: 100 }) : Promise.resolve([]),
     ]);
+    const nftOrders = actor.root ? await prisma.nftOrder.findMany({ where: { status: "PENDING" }, include: { gift: true, user: { select: { id: true, username: true, firstName: true } } }, orderBy: { createdAt: "asc" }, take: 50 }) : [];
     return NextResponse.json({
       actor: { root: actor.root, role: actor.role, permissions: actor.permissions },
       roles: Object.entries(ROLE_LABELS).map(([id, label]) => ({ id, label, permissions: ROLE_PERMISSIONS[id] })),
       stats: { users: usersCount, banned: bannedCount, verified: verifiedCount, openReports },
-      staff, logs, users, reports, warnings, notes, nftOrders,
+      staff, logs, users, reports, warnings, notes, nftOrders, nftOrders,
     });
   } catch (error) {
     console.error("Admin GET:", error);
@@ -182,6 +183,33 @@ export async function POST(req: NextRequest) {
       if (!target) return NextResponse.json({ error: "Игрок не найден" }, { status: 404 });
       await logAction(actor.telegramId, "admin_note_added", target.id, "Внутренняя заметка", { note: reason });
       return NextResponse.json({ success: true, message: "Внутренняя заметка сохранена" });
+    }
+
+    if (action === "approve_nft_order") {
+      if (!actor.root) return NextResponse.json({ error: "Выдавать NFT может только владелец проекта" }, { status: 403 });
+      const orderId = String(body.orderId || "");
+      if (!orderId) return NextResponse.json({ error: "Не указана заявка" }, { status: 400 });
+      const order = await prisma.nftOrder.findUnique({ where: { id: orderId }, include: { gift: true, user: true } });
+      if (!order || order.status !== "PENDING") return NextResponse.json({ error: "Заявка уже обработана или не найдена" }, { status: 404 });
+      if (order.gift.supply !== null && order.gift.issued >= order.gift.supply) return NextResponse.json({ error: "Лимитированная серия закончилась" }, { status: 409 });
+      await prisma.$transaction(async (tx) => {
+        const changed = await tx.nftOrder.updateMany({ where: { id: order.id, status: "PENDING" }, data: { status: "DELIVERED", adminNote: reason || "Оплата подтверждена владельцем" } });
+        if (changed.count !== 1) throw new Error("Заявка уже обработана");
+        await tx.userNft.create({ data: { userId: order.userId, giftId: order.giftId, orderId: order.id, serialNumber: order.gift.issued + 1 } });
+        await tx.nftGift.update({ where: { id: order.giftId }, data: { issued: { increment: 1 } } });
+        await tx.adminActionLog.create({ data: { actorTelegramId: actor.telegramId, targetUserId: order.userId, action: "nft_gift_delivered", reason: reason || "NFT выдан после подтверждения оплаты", metadata: { orderId: order.id, giftId: order.giftId, giftName: order.gift.name } } });
+      });
+      return NextResponse.json({ success: true, message: "NFT выдан игроку в коллекцию" });
+    }
+
+    if (action === "reject_nft_order") {
+      if (!actor.root) return NextResponse.json({ error: "Управлять NFT-заявками может только владелец проекта" }, { status: 403 });
+      const orderId = String(body.orderId || "");
+      if (!orderId || reason.length < 5) return NextResponse.json({ error: "Укажи заявку и причину отказа" }, { status: 400 });
+      const changed = await prisma.nftOrder.updateMany({ where: { id: orderId, status: "PENDING" }, data: { status: "CANCELLED", adminNote: reason } });
+      if (!changed.count) return NextResponse.json({ error: "Заявка уже обработана или не найдена" }, { status: 404 });
+      await logAction(actor.telegramId, "nft_order_cancelled", null, reason, { orderId });
+      return NextResponse.json({ success: true, message: "Заявка отклонена" });
     }
 
     if (action === "resolve_report") {
