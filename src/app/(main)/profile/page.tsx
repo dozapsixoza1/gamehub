@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useTelegram } from "@/components/layout/TelegramProvider";
 import { formatNumber } from "@/lib/utils";
-import { Coins, Gem, Trophy, Gamepad2, Ticket, Gift, Users, Star, History, Crown, Copy, Settings, ShieldCheck } from "lucide-react";
+import { Coins, Gem, Trophy, Gamepad2, Ticket, Gift, Users, Star, History, Crown, Copy, Settings, ShieldCheck, Gem, MessageCircle } from "lucide-react";
 import { PlayerBadges } from "@/components/players/PlayerBadges";
 import { VerificationManager } from "@/components/players/VerificationManager";
 
@@ -140,6 +140,7 @@ export default function ProfilePage() {
       <Link href="/admin" className="glass rounded-xl p-3 flex items-center gap-2 text-sm text-white"><ShieldCheck size={17} className="text-red-400" />Панель администрации</Link>
 
       <Link href="/settings" className="glass rounded-xl p-3 flex items-center gap-2 text-sm text-white"><Settings size={17}/>Настройки профиля</Link>
+      <div className="grid grid-cols-2 gap-3"><Link href="/nft" className="glass rounded-xl p-3 flex items-center gap-2 text-sm text-white"><Gem size={17} className="text-violet-300"/>Мои NFT</Link><Link href="/messages" className="glass rounded-xl p-3 flex items-center gap-2 text-sm text-white"><MessageCircle size={17} className="text-sky-300"/>Сообщения</Link></div>
 
       <div className="grid grid-cols-2 gap-3">
         <Link href="/leaderboard" className="glass rounded-xl p-3 flex items-center gap-2 text-sm text-white"><Crown size={17} className="text-yellow-400" />Рейтинг игроков</Link>
