@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
 
     await ensureAchievements();
 
-    const [achievements, history, leaderboard, referrals] = await Promise.all([
+    const [achievements, history, leaderboard, referrals, xpTransactions] = await Promise.all([
       prisma.userAchievement.findMany({
         where: { userId: user.id },
         include: { achievement: true },
@@ -55,6 +55,7 @@ export async function GET(req: NextRequest) {
         select: { id: true, username: true, firstName: true, photoUrl: true, xp: true, level: true, gamesPlayed: true, gamesWon: true },
       }),
       prisma.user.count({ where: { referredById: user.id } }),
+      prisma.xpTransaction.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 20, select: { id: true, amount: true, balanceAfter: true, source: true, reason: true, createdAt: true } }),
     ]);
 
     const nextLevelXp = user.level * user.level * LEVEL_STEP;
@@ -82,6 +83,7 @@ export async function GET(req: NextRequest) {
       achievements,
       history,
       leaderboard,
+      xpTransactions,
     });
   } catch (error) {
     console.error("Progression GET:", error);
