@@ -12,8 +12,8 @@ async function getUser(initData:string){
 }
 async function ensureCatalogue(){
   await Promise.all(CATALOGUE.map(([slug,name,description,rarity,imageUrl,supply],i)=>prisma.nftGift.upsert({
-    where:{id:slug},
-    create:{id:slug,slug,name,description,rarity,imageUrl,supply,sortOrder:i},
+    where:{slug},
+    create:{slug,name,description,rarity,imageUrl,supply,sortOrder:i},
     update:{name,description,rarity,imageUrl,supply,sortOrder:i,isActive:true}
   })));
 }
