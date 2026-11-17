@@ -135,9 +135,11 @@ export async function POST(req: NextRequest) {
       const orderId = String(body.orderId || "");
       const order = await prisma.nftOrder.findUnique({ where: { id: orderId }, include: { gift: true } });
       if (!order || order.status !== "PENDING") return NextResponse.json({ error: "Заявка не найдена или уже обработана" }, { status: 404 });
+      if (order.gift.supply !== null && order.gift.issued >= order.gift.supply) return NextResponse.json({ error: "Лимит выпуска этого подарка исчерпан" }, { status: 409 });
       const serialNumber = (await prisma.userNft.count({ where: { giftId: order.giftId } })) + 1;
       await prisma.$transaction([
         prisma.userNft.create({ data: { userId: order.userId, giftId: order.giftId, orderId: order.id, serialNumber } }),
+        prisma.nftGift.update({ where: { id: order.giftId }, data: { issued: { increment: 1 } } }),
         prisma.nftOrder.update({ where: { id: order.id }, data: { status: "DELIVERED", adminNote: reason || "Выдано владельцем" } }),
         prisma.adminActionLog.create({ data: { actorTelegramId: actor.telegramId, targetUserId: order.userId, action: "nft_issued", reason: reason || "NFT выдан", metadata: { orderId, giftId: order.giftId, serialNumber } } })
       ]);
