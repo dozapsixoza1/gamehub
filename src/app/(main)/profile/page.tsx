@@ -7,6 +7,7 @@ import { formatNumber } from "@/lib/utils";
 import { Coins, Gem, Trophy, Gamepad2, Ticket, Gift, Users, Star, History, Crown, Copy, Settings, ShieldCheck, MessageCircle } from "lucide-react";
 import { PlayerBadges } from "@/components/players/PlayerBadges";
 import { VerificationManager } from "@/components/players/VerificationManager";
+import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 
 type ProgressData = {
   profile: {
