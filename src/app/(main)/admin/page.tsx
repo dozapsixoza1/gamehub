@@ -15,7 +15,6 @@ type PanelData = {
   reports: { id: string; reason: string; details: string | null; createdAt: string; author: { username: string | null; firstName: string | null }; target: { username: string | null; firstName: string | null } }[];
   warnings: { id: string; targetUserId: string | null; reason: string | null; createdAt: string }[];
   notes: { id: string; targetUserId: string | null; reason: string | null; metadata: { note?: string } | null; createdAt: string }[];
-  nftOrders: { id: string; createdAt: string; gift: { name: string; rarity: string; imageUrl: string }; user: { id: string; username: string | null; firstName: string | null } }[];
   nftOrders: { id: string; createdAt: string; buyerNote: string | null; user: { id: string; username: string | null; firstName: string | null }; gift: { id: string; name: string; rarity: string; imageUrl: string } }[];
   messageReports: { id: string; reason: string; createdAt: string; reporter: { username: string | null; firstName: string | null }; message: { content: string; sender: { username: string | null; firstName: string | null }; recipient: { username: string | null; firstName: string | null } } }[];
 };
