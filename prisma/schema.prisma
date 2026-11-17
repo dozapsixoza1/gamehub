@@ -61,6 +61,8 @@ model User {
   promoRedemptions PromoRedemption[]
   purchases        Purchase[]
   mafiaPlayers     MafiaPlayer[]
+  bunkerPlayers    BunkerPlayer[]
+  bunkerRooms      BunkerRoom[] @relation("BunkerHost")
   ownedItems       UserItem[]
   achievements     UserAchievement[]
   dailyRewards     DailyReward[]
@@ -281,6 +283,49 @@ model MafiaVote {
 
   @@unique([roomId, voterId, dayNumber])
   @@map("mafia_votes")
+}
+
+
+// ======================
+// БУНКЕР
+// ======================
+
+model BunkerRoom {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String?
+  hostId      String
+  status      String   @default("WAITING")
+  maxPlayers  Int      @default(10)
+  minPlayers  Int      @default(4)
+  gameState   Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  host        User     @relation("BunkerHost", fields: [hostId], references: [id], onDelete: Cascade)
+  players     BunkerPlayer[]
+
+  @@index([status])
+  @@index([code])
+  @@map("bunker_rooms")
+}
+
+model BunkerPlayer {
+  id             String   @id @default(cuid())
+  roomId         String
+  userId         String
+  isHost         Boolean  @default(false)
+  isActive       Boolean  @default(true)
+  character      Json?
+  revealedFields String[] @default([])
+  joinedAt       DateTime @default(now())
+  room           BunkerRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@index([roomId])
+  @@map("bunker_players")
 }
 
 
