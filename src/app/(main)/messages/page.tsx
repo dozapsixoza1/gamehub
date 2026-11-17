@@ -46,6 +46,12 @@ export default function MessagesPage() {
   },[initData,loadConversations,loadThread]);
 
   useEffect(()=>{
+    if(target||!initData)return;
+    const timer=window.setInterval(loadConversations,15000);
+    return ()=>window.clearInterval(timer);
+  },[target,initData,loadConversations]);
+
+  useEffect(()=>{
     if(!target||blockedByMe||blockedMe)return;
     const timer=window.setInterval(()=>loadThread(target.id),5000);
     return ()=>window.clearInterval(timer);
