@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
     if (body.action === "react") {
       const roomId = String(body.roomId || "");
       const emoji = String(body.emoji || "");
-      if (!["👍","😂","❤️","🔥","😮","👎"].includes(emoji)) return NextResponse.json({ error: "Недопустимая реакция" }, { status: 400 });
+      if (!["🪬","🪷","🫧","🪽","💠","🪐"].includes(emoji)) return NextResponse.json({ error: "Недопустимая реакция" }, { status: 400 });
       const member = await prisma.mafiaPlayer.findFirst({ where: { roomId, userId: me.id } });
       if (!member) return NextResponse.json({ error: "Ты не участник комнаты" }, { status: 403 });
       const reaction = await prisma.roomReaction.create({ data: { roomId, userId: me.id, emoji } });
