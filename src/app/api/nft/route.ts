@@ -47,7 +47,8 @@ export async function POST(req:NextRequest){
     const text=["Новая заявка на NFT GameHub","Подарок: "+gift.name+" ["+gift.rarity+"]","Покупатель: "+buyer,"ID заявки: "+order.id,note?"Комментарий: "+note:"","Подтверди оплату и выдай подарок в админ-панели."].filter(Boolean).join("\n");
     const token=process.env.BOT_TOKEN,ids=ownerIds();
     if(token&&ids.length)await Promise.allSettled(ids.map(chatId=>fetch("https://api.telegram.org/bot"+token+"/sendMessage",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chat_id:chatId,text,disable_web_page_preview:true})})));
-    const ownerUsername=(process.env.OWNER_TELEGRAM_USERNAME||"").replace(/^@/,"");
+    const owner = await prisma.user.findFirst({ where: { telegramId: { in: ownerIds().map(BigInt) } }, select: { username: true } });
+    const ownerUsername=(owner?.username||process.env.OWNER_TELEGRAM_USERNAME||"").replace(/^@/,"");
     const contactUrl=ownerUsername?"https://t.me/"+ownerUsername+"?text="+encodeURIComponent("Здравствуйте! Хочу купить "+gift.name+". Заявка "+order.id):null;
     return NextResponse.json({success:true,orderId:order.id,contactUrl,message:"Заявка отправлена владельцу. Согласуй оплату в личных сообщениях."});
   }catch(e){console.error("NFT POST",e);return NextResponse.json({error:"Не удалось создать заявку"},{status:500});}
