@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Gamepad2, ShoppingBag, User, Users } from "lucide-react";
+import { Gamepad2, ShoppingBag, User, Users, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const tabs = [
   { href: "/", label: "Игры", icon: Gamepad2 },
   { href: "/rooms", label: "Комнаты", icon: Users },
   { href: "/shop", label: "Магазин", icon: ShoppingBag },
+  { href: "/messages", label: "Чаты", icon: MessageCircle },
   { href: "/profile", label: "Профиль", icon: User },
 ];
 
