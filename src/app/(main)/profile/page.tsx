@@ -8,7 +8,6 @@ import { Coins, Gem, Trophy, Gamepad2, Ticket, Gift, Users, Star, History, Crown
 import { PlayerBadges } from "@/components/players/PlayerBadges";
 import { VerificationManager } from "@/components/players/VerificationManager";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
-import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 
 type ProgressData = {
   profile: {
