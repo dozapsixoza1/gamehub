@@ -89,3 +89,34 @@
 .player-role-default { color:#e5e7eb; border-color:rgba(209,213,219,.25); background-image:linear-gradient(100deg,#374151,#9ca3af,#4b5563,#d1d5db,#374151); }
 .player-role-admin { color:#fff; border-color:rgba(248,113,113,.5); background-image:linear-gradient(100deg,#7f1d1d,#ef4444,#991b1b,#fca5a5,#7f1d1d); }
 .player-verified { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:999px; color:white; background:#2563eb; box-shadow:0 0 12px rgba(59,130,246,.35); }
+
+
+/* GameHub theme engine */
+:root[data-theme="dark"] { color-scheme: dark; }
+:root[data-theme="midnight"] { --background: 230 38% 6%; --foreground: 220 25% 96%; --card: 230 34% 10%; --secondary: 230 28% 15%; color-scheme: dark; }
+:root[data-theme="red"] { --background: 0 28% 6%; --foreground: 0 0% 98%; --card: 0 25% 10%; --secondary: 0 20% 16%; --primary: 0 78% 54%; color-scheme: dark; }
+:root[data-theme="ocean"] { --background: 205 48% 7%; --foreground: 195 35% 96%; --card: 205 42% 11%; --secondary: 205 35% 17%; --primary: 190 85% 48%; color-scheme: dark; }
+:root[data-theme="forest"] { --background: 150 28% 6%; --foreground: 140 22% 96%; --card: 150 25% 10%; --secondary: 150 22% 16%; --primary: 155 65% 43%; color-scheme: dark; }
+:root[data-theme="amoled"] { --background: 0 0% 0%; --foreground: 0 0% 98%; --card: 0 0% 5%; --secondary: 0 0% 10%; --primary: 0 0% 95%; color-scheme: dark; }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-accent="ruby"] { --primary: 0 78% 54%; --ring: 0 78% 54%; }
+:root[data-accent="violet"] { --primary: 270 78% 63%; --ring: 270 78% 63%; }
+:root[data-accent="cyan"] { --primary: 190 85% 48%; --ring: 190 85% 48%; }
+:root[data-accent="gold"] { --primary: 43 85% 55%; --ring: 43 85% 55%; }
+:root[data-accent="emerald"] { --primary: 155 65% 43%; --ring: 155 65% 43%; }
+:root[data-background="plain"] body::before { opacity: 0 !important; }
+:root[data-background="mesh"] body::before { background: radial-gradient(ellipse at 15% 10%, hsl(var(--primary) / .18), transparent 42%), radial-gradient(ellipse at 85% 85%, #2563eb22, transparent 40%); }
+:root[data-background="aurora"] body::before { background: radial-gradient(ellipse at 0% 0%, hsl(var(--primary) / .18), transparent 38%), radial-gradient(ellipse at 100% 40%, #7c3aed20, transparent 42%), radial-gradient(ellipse at 40% 100%, #0891b220, transparent 38%); }
+:root body { position: relative; }
+:root body::before { content: ""; pointer-events: none; position: fixed; inset: 0; z-index: -1; opacity: 1; background: radial-gradient(ellipse at 0% 0%, hsl(var(--primary) / .15), transparent 38%), radial-gradient(ellipse at 100% 50%, #7c3aed18, transparent 42%); }
+:root[data-theme="light"] body { background: hsl(var(--background)); color: hsl(var(--foreground)); }
+:root[data-theme="light"] .text-white { color: #171923 !important; }
+:root[data-theme="light"] [class*="text-white/"] { color: rgb(30 35 48 / var(--tw-text-opacity, 1)) !important; }
+:root[data-theme="light"] .glass { background: rgb(255 255 255 / .78) !important; border-color: rgb(15 23 42 / .10) !important; box-shadow: 0 8px 30px rgb(15 23 42 / .06); }
+:root[data-theme="light"] [class*="bg-black/"] { background-color: rgb(15 23 42 / .06) !important; }
+:root[data-theme="light"] [class*="border-white/"] { border-color: rgb(15 23 42 / .12) !important; }
+:root[data-theme="light"] .bg-zinc-900, :root[data-theme="light"] .bg-\[\#171717\] { background-color: #fff !important; color: #171923 !important; }
+:root[data-theme="light"] input, :root[data-theme="light"] select, :root[data-theme="light"] textarea { color: #171923; }
+:root[data-compact="true"] .glass { border-radius: .85rem; }
+:root[data-compact="true"] section.glass { padding: .8rem; }
+:root[data-animations="false"] *, :root[data-animations="false"] *::before, :root[data-animations="false"] *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
