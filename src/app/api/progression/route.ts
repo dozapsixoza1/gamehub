@@ -40,10 +40,12 @@ export async function GET(req: NextRequest) {
     if (ownerIds.includes(user.telegramId.toString()) && (user.level < 100 || user.xp < 990000 || !user.isAdmin)) {
       const nextXp = Math.max(user.xp, 990000);
       const delta = nextXp - user.xp;
-      await prisma.$transaction([
-        prisma.user.update({ where: { id: user.id }, data: { xp: nextXp, level: 100, isAdmin: true } }),
-        ...(delta > 0 ? [prisma.xpTransaction.create({ data: { userId: user.id, amount: delta, balanceAfter: nextXp, source: "OWNER_REWARD", reason: "Установка 100-го уровня владельцу проекта" } })] : []),
-      ]);
+      await prisma.$transaction(async (tx) => {
+        await tx.user.update({ where: { id: user.id }, data: { xp: nextXp, level: 100, isAdmin: true } });
+        if (delta > 0) {
+          await tx.xpTransaction.create({ data: { userId: user.id, amount: delta, balanceAfter: nextXp, source: "OWNER_REWARD", reason: "Установка 100-го уровня владельцу проекта" } });
+        }
+      });
       user.xp = nextXp;
       user.level = 100;
       user.isAdmin = true;
