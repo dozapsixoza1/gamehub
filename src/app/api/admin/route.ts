@@ -77,7 +77,6 @@ export async function GET(req: NextRequest) {
       actor.root ? prisma.nftOrder.findMany({ where: { status: "PENDING" }, include: { user: { select: { id: true, username: true, firstName: true } }, gift: true }, orderBy: { createdAt: "asc" }, take: 100 }) : Promise.resolve([]),
       allowed(actor, "reports_manage") ? prisma.messageReport.findMany({ where: { status: "OPEN" }, include: { reporter: { select: { username: true, firstName: true } }, message: { include: { sender: { select: { username: true, firstName: true } }, recipient: { select: { username: true, firstName: true } } } } }, orderBy: { createdAt: "desc" }, take: 50 }) : Promise.resolve([]),
     ]);
-    const nftOrders = actor.root ? await prisma.nftOrder.findMany({ where: { status: "PENDING" }, include: { gift: true, user: { select: { id: true, username: true, firstName: true } } }, orderBy: { createdAt: "asc" }, take: 50 }) : [];
     return NextResponse.json({
       actor: { root: actor.root, role: actor.role, permissions: actor.permissions },
       roles: Object.entries(ROLE_LABELS).map(([id, label]) => ({ id, label, permissions: ROLE_PERMISSIONS[id] })),
