@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useTelegram } from "@/components/layout/TelegramProvider";
 import { formatNumber } from "@/lib/utils";
-import { Coins, Gem, Trophy, Gamepad2, Ticket, Gift, Users, Star, History, Crown, Copy, Settings, ShieldCheck, Gem, MessageCircle } from "lucide-react";
+import { Coins, Gem, Trophy, Gamepad2, Ticket, Gift, Users, Star, History, Crown, Copy, Settings, ShieldCheck, MessageCircle } from "lucide-react";
 import { PlayerBadges } from "@/components/players/PlayerBadges";
 import { VerificationManager } from "@/components/players/VerificationManager";
 
