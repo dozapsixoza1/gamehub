@@ -120,3 +120,6 @@
 :root[data-compact="true"] .glass { border-radius: .85rem; }
 :root[data-compact="true"] section.glass { padding: .8rem; }
 :root[data-animations="false"] *, :root[data-animations="false"] *::before, :root[data-animations="false"] *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+
+:root[data-theme="light"] input::placeholder, :root[data-theme="light"] textarea::placeholder { color: rgb(30 35 48 / .45) !important; }
+:root[data-theme="light"] select option { background: #fff; color: #171923; }
