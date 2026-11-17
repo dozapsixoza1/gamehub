@@ -13,6 +13,8 @@ type PanelData = {
   logs: { id: string; action: string; reason: string | null; createdAt: string; targetUserId: string | null }[];
   users: { id: string; username: string | null; firstName: string | null; xp: number; level: number; isBanned: boolean; isVerified: boolean; isAdmin: boolean }[];
   reports: { id: string; reason: string; details: string | null; createdAt: string; author: { username: string | null; firstName: string | null }; target: { username: string | null; firstName: string | null } }[];
+  warnings: { id: string; targetUserId: string | null; reason: string | null; createdAt: string }[];
+  notes: { id: string; targetUserId: string | null; reason: string | null; metadata: { note?: string } | null; createdAt: string }[];
 };
 
 export default function AdminPage() {
@@ -87,6 +89,24 @@ export default function AdminPage() {
     </section>}
 
     {can("reports_manage") && <section className="glass rounded-2xl p-4 space-y-3"><h2 className="font-semibold text-white">Очередь жалоб</h2>{data.reports.length?data.reports.map(report=><div key={report.id} className="rounded-xl bg-white/5 p-3 space-y-2"><p className="text-sm text-white">{report.author.firstName||report.author.username||"Игрок"} → {report.target.firstName||report.target.username||"Игрок"}</p><p className="text-xs text-white/65">{report.reason}</p>{report.details&&<p className="text-xs text-white/40">{report.details}</p>}<div className="flex gap-2"><button disabled={busy||!reason.trim()} onClick={()=>act("resolve_report",{reportId:report.id,status:"RESOLVED"})} className="flex-1 rounded-lg bg-emerald-600/80 py-2 text-xs text-white disabled:opacity-40">Решено</button><button disabled={busy||!reason.trim()} onClick={()=>act("resolve_report",{reportId:report.id,status:"REJECTED"})} className="flex-1 rounded-lg bg-white/10 py-2 text-xs text-white disabled:opacity-40">Отклонить</button></div></div>):<p className="text-xs text-white/40">Открытых жалоб нет</p>}<input value={reason} onChange={e=>setReason(e.target.value)} placeholder="Причина решения по жалобе (минимум 5 символов)" className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-sm text-white"/></section>}
+
+    {can("users_ban") && <section className="glass rounded-2xl p-4 space-y-3">
+      <h2 className="font-semibold text-white">Предупреждения</h2>
+      <p className="text-xs text-white/40">Фиксируй нарушения игрока. Каждое предупреждение попадает в журнал.</p>
+      <input value={username} onChange={e=>setUsername(e.target.value)} placeholder="@username игрока" className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-sm text-white"/>
+      <input value={reason} onChange={e=>setReason(e.target.value)} placeholder="Причина предупреждения" className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-sm text-white"/>
+      <button disabled={busy||!username.trim()||reason.trim().length<5} onClick={()=>act("issue_warning")} className="w-full rounded-xl bg-amber-500/20 text-amber-200 py-3 text-sm font-semibold disabled:opacity-40">Выдать предупреждение</button>
+      <div className="space-y-2">{data.warnings.map(w=><div key={w.id} className="rounded-lg bg-white/5 p-3 text-xs"><p className="text-white">{w.reason}</p><p className="text-white/35 mt-1">{new Date(w.createdAt).toLocaleString("ru-RU")}</p></div>)}</div>
+    </section>}
+
+    {can("logs_view") && <section className="glass rounded-2xl p-4 space-y-3">
+      <h2 className="font-semibold text-white">Внутренние заметки</h2>
+      <p className="text-xs text-white/40">Заметки видны только сотрудникам с доступом к журналу администрации.</p>
+      <input value={username} onChange={e=>setUsername(e.target.value)} placeholder="@username игрока" className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-sm text-white"/>
+      <textarea value={reason} onChange={e=>setReason(e.target.value)} placeholder="Служебная заметка о ситуации" className="w-full min-h-20 bg-black/20 border border-white/10 rounded-xl p-3 text-sm text-white"/>
+      <button disabled={busy||!username.trim()||reason.trim().length<5} onClick={()=>act("add_note")} className="w-full rounded-xl bg-white/10 py-3 text-sm text-white disabled:opacity-40">Сохранить заметку</button>
+      <div className="space-y-2">{data.notes.map(n=><div key={n.id} className="rounded-lg bg-white/5 p-3"><p className="text-xs text-white">{n.metadata?.note||n.reason}</p><p className="text-[11px] text-white/35 mt-1">{new Date(n.createdAt).toLocaleString("ru-RU")}</p></div>)}</div>
+    </section>}
 
     {can("users_view") && <section className="glass rounded-2xl p-4 space-y-2"><h2 className="font-semibold text-white">Последние игроки</h2>{data.users.map(u=><div key={u.id} className="flex items-center justify-between gap-2 border-b border-white/5 py-2"><div className="min-w-0"><p className="text-sm text-white truncate">{u.firstName||u.username||"Игрок"} <span className="text-white/35">{u.username?"@"+u.username:""}</span></p><p className="text-xs text-white/40">Уровень {u.level} · {u.xp} XP</p></div><span className={u.isBanned?"text-red-400":"text-emerald-400"}>{u.isBanned?"БАН":"OK"}</span></div>)}</section>}
 
