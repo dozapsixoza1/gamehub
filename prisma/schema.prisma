@@ -36,6 +36,7 @@ model User {
   lastDailyAt   DateTime?
   
   isAdmin       Boolean  @default(false)
+  isVerified    Boolean  @default(false)
   isBanned      Boolean  @default(false)
   
   createdAt     DateTime @default(now())
