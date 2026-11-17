@@ -7,6 +7,7 @@ import { formatNumber } from "@/lib/utils";
 import { Coins, Gem, Trophy, Gamepad2, Ticket, Gift, Users, Star, History, Crown, Copy, Settings, ShieldCheck, MessageCircle } from "lucide-react";
 import { PlayerBadges } from "@/components/players/PlayerBadges";
 import { VerificationManager } from "@/components/players/VerificationManager";
+import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 
 type ProgressData = {
   profile: {
@@ -84,9 +85,7 @@ export default function ProfilePage() {
   return (
     <div className="px-4 pt-6 pb-8 max-w-lg mx-auto space-y-4">
       <div className="flex items-center gap-4">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center text-2xl font-bold text-white overflow-hidden">
-          {(user.avatarUrl || user.photoUrl) ? <img src={(user.avatarUrl || user.photoUrl)!} alt="" className="w-full h-full object-cover" /> : (user.firstName?.[0] || "?")}
-        </div>
+        <PlayerAvatar name={user.displayName || user.firstName || "Игрок"} imageUrl={user.avatarUrl || user.photoUrl} online sizeClassName="h-16 w-16 text-2xl font-bold"/>
         <div className="min-w-0">
           <h1 className="text-xl font-bold text-white truncate">{user.displayName || `${user.firstName || ""} ${user.lastName || ""}`.trim()}</h1>
           {user.username && <p className="text-white/40 text-sm">@{user.username}</p>}

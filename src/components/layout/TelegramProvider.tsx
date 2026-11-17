@@ -129,6 +129,26 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  useEffect(() => {
+    if (!initData) return;
+    const heartbeat = () => {
+      if (document.visibilityState !== "visible") return;
+      fetch("/api/presence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ initData }),
+        cache: "no-store",
+      }).catch(() => {});
+    };
+    heartbeat();
+    const timer = window.setInterval(heartbeat, 30_000);
+    document.addEventListener("visibilitychange", heartbeat);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", heartbeat);
+    };
+  }, [initData]);
+
   return (
     <TelegramContext.Provider
       value={{ user, initData, isLoading, isTelegram, refreshUser }}
