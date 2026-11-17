@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTelegram } from "@/components/layout/TelegramProvider";
-import { ArrowLeft, Shield, Users, Ban, Star, ScrollText, UserPlus } from "lucide-react";
+import { ArrowLeft, Shield, Users, Ban, Star, ScrollText, UserPlus, Gift, PackageCheck } from "lucide-react";
 
 type PanelData = {
   actor: { root: boolean; role: string | null; permissions: string[] };
@@ -15,6 +15,7 @@ type PanelData = {
   reports: { id: string; reason: string; details: string | null; createdAt: string; author: { username: string | null; firstName: string | null }; target: { username: string | null; firstName: string | null } }[];
   warnings: { id: string; targetUserId: string | null; reason: string | null; createdAt: string }[];
   notes: { id: string; targetUserId: string | null; reason: string | null; metadata: { note?: string } | null; createdAt: string }[];
+  nftOrders: { id: string; createdAt: string; buyerNote: string | null; user: { id: string; username: string | null; firstName: string | null }; gift: { id: string; name: string; rarity: string; imageUrl: string } }[];
 };
 
 export default function AdminPage() {
@@ -70,6 +71,12 @@ export default function AdminPage() {
       <input value={reason} onChange={e=>setReason(e.target.value)} placeholder="Причина назначения / снятия" className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-sm text-white"/>
       <div className="grid grid-cols-2 gap-2"><button disabled={busy||!username.trim()} onClick={()=>act("assign_staff")} className="rounded-xl bg-red-600 py-3 text-sm font-bold text-white disabled:opacity-40">Назначить</button><button disabled={busy||!username.trim()} onClick={()=>act("remove_staff")} className="rounded-xl bg-white/10 py-3 text-sm text-white disabled:opacity-40">Снять должность</button></div>
       <div className="space-y-2 pt-2"><p className="text-xs uppercase tracking-wider text-white/40">Текущий состав</p>{data.staff.length?data.staff.map(s=><div key={s.id} className="flex justify-between gap-3 rounded-lg bg-white/5 p-3"><div><p className="text-sm text-white">@{s.user.username||"без username"}</p><p className="text-xs text-white/40">{data.roles.find(r=>r.id===s.role)?.label||s.role}</p></div><span className="text-xs text-white/40">{s.user.isBanned?"Заблокирован":"Активен"}</span></div>):<p className="text-xs text-white/40">Состав пока пуст</p>}</div>
+    </section>}
+
+    {data.actor.root && <section className="glass rounded-2xl p-4 space-y-3">
+      <div className="flex items-center gap-2 text-white"><Gift size={18} className="text-violet-300"/><h2 className="font-semibold">Заявки на NFT-подарки</h2><span className="ml-auto rounded-full bg-violet-500/15 px-2 py-1 text-[10px] text-violet-200">{data.nftOrders.length}</span></div>
+      <p className="text-xs text-white/40">Сначала согласуй оплату с покупателем в личных сообщениях. Затем выдай подарок кнопкой ниже.</p>
+      {data.nftOrders.length ? data.nftOrders.map(o=><div key={o.id} className="flex items-center gap-3 rounded-xl bg-white/5 p-3"><img src={o.gift.imageUrl} alt="" className="h-14 w-14 rounded-xl object-cover"/><div className="min-w-0 flex-1"><p className="text-sm font-semibold text-white">{o.gift.name}</p><p className="text-xs text-white/45">{o.user.firstName||"Игрок"} {o.user.username?"@"+o.user.username:""} · {o.gift.rarity}</p>{o.buyerNote&&<p className="text-[10px] text-white/35 mt-1">{o.buyerNote}</p>}<p className="text-[9px] text-white/25 mt-1">Заявка {o.id.slice(-8)}</p></div><button disabled={busy} onClick={()=>act("issue_nft",{orderId:o.id})} className="shrink-0 rounded-xl bg-emerald-500/15 px-3 py-2 text-xs font-bold text-emerald-200 disabled:opacity-40"><PackageCheck size={15} className="mx-auto mb-1"/>Выдать</button></div>):<p className="py-5 text-center text-xs text-white/35">Новых заявок пока нет</p>}
     </section>}
 
     {can("xp_manage") && <section className="glass rounded-2xl p-4 space-y-3">
