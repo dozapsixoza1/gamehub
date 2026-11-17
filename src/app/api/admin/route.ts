@@ -68,6 +68,7 @@ export async function GET(req: NextRequest) {
       prisma.user.count({ where: { isBanned: true } }),
       prisma.user.count({ where: { isVerified: true } }),
       prisma.playerReport.count({ where: { status: "OPEN" } }),
+      allowed(actor, "reports_manage") ? prisma.playerReport.findMany({ where: { status: "OPEN" }, include: { author: { select: { username: true, firstName: true } }, target: { select: { username: true, firstName: true } } }, orderBy: { createdAt: "desc" }, take: 50 }) : Promise.resolve([]),
       prisma.adminStaff.findMany({ include: { user: { select: { id: true, username: true, firstName: true, isBanned: true } } }, orderBy: { appointedAt: "desc" }, take: 100 }),
       allowed(actor, "logs_view") ? prisma.adminActionLog.findMany({ orderBy: { createdAt: "desc" }, take: 50 }) : Promise.resolve([]),
       canViewUsers ? prisma.user.findMany({ orderBy: { createdAt: "desc" }, take: 50, select: { id: true, username: true, firstName: true, xp: true, level: true, isBanned: true, isVerified: true, isAdmin: true } }) : Promise.resolve([]),
