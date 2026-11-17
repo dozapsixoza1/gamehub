@@ -17,6 +17,7 @@ type PanelData = {
   notes: { id: string; targetUserId: string | null; reason: string | null; metadata: { note?: string } | null; createdAt: string }[];
   nftOrders: { id: string; createdAt: string; gift: { name: string; rarity: string; imageUrl: string }; user: { id: string; username: string | null; firstName: string | null } }[];
   nftOrders: { id: string; createdAt: string; buyerNote: string | null; user: { id: string; username: string | null; firstName: string | null }; gift: { id: string; name: string; rarity: string; imageUrl: string } }[];
+  messageReports: { id: string; reason: string; createdAt: string; reporter: { username: string | null; firstName: string | null }; message: { content: string; sender: { username: string | null; firstName: string | null }; recipient: { username: string | null; firstName: string | null } } }[];
 };
 
 export default function AdminPage() {
@@ -72,6 +73,11 @@ export default function AdminPage() {
       <input value={reason} onChange={e=>setReason(e.target.value)} placeholder="Причина назначения / снятия" className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-sm text-white"/>
       <div className="grid grid-cols-2 gap-2"><button disabled={busy||!username.trim()} onClick={()=>act("assign_staff")} className="rounded-xl bg-red-600 py-3 text-sm font-bold text-white disabled:opacity-40">Назначить</button><button disabled={busy||!username.trim()} onClick={()=>act("remove_staff")} className="rounded-xl bg-white/10 py-3 text-sm text-white disabled:opacity-40">Снять должность</button></div>
       <div className="space-y-2 pt-2"><p className="text-xs uppercase tracking-wider text-white/40">Текущий состав</p>{data.staff.length?data.staff.map(s=><div key={s.id} className="flex justify-between gap-3 rounded-lg bg-white/5 p-3"><div><p className="text-sm text-white">@{s.user.username||"без username"}</p><p className="text-xs text-white/40">{data.roles.find(r=>r.id===s.role)?.label||s.role}</p></div><span className="text-xs text-white/40">{s.user.isBanned?"Заблокирован":"Активен"}</span></div>):<p className="text-xs text-white/40">Состав пока пуст</p>}</div>
+    </section>}
+
+    {can("reports_manage") && <section className="glass rounded-2xl p-4 space-y-3">
+      <h2 className="font-semibold text-white">Жалобы на личные сообщения</h2>
+      {data.messageReports.length ? data.messageReports.map(r=><div key={r.id} className="rounded-xl bg-white/5 p-3 space-y-2"><p className="text-xs text-white/50">{r.reporter.firstName||r.reporter.username||"Игрок"} пожаловался на {r.message.sender.firstName||r.message.sender.username||"игрока"}</p><p className="rounded-lg bg-black/20 p-3 text-sm text-white">{r.message.content}</p><p className="text-xs text-amber-200">{r.reason}</p><div className="flex gap-2"><button disabled={busy} onClick={()=>act("resolve_message_report",{reportId:r.id,status:"RESOLVED"})} className="flex-1 rounded-lg bg-emerald-600/80 py-2 text-xs text-white">Решено</button><button disabled={busy} onClick={()=>act("resolve_message_report",{reportId:r.id,status:"REJECTED"})} className="flex-1 rounded-lg bg-white/10 py-2 text-xs text-white">Отклонить</button></div></div>):<p className="text-xs text-white/40">Жалоб нет</p>}
     </section>}
 
     {data.actor.root && <section className="glass rounded-2xl p-4 space-y-3">
