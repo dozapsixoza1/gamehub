@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
     const reason = String(body.reason || "").trim().slice(0, 300);
 
     if (action === "assign_staff" || action === "remove_staff") {
-      if (!actor.root && !allowed(actor, "staff_manage")) return NextResponse.json({ error: "Недостаточно прав для управления составом" }, { status: 403 });
+      if (!actor.root) return NextResponse.json({ error: "Назначать и снимать сотрудников может только владелец проекта" }, { status: 403 });
       if (!/^[a-z0-9_]{5,32}$/.test(username)) return NextResponse.json({ error: "Укажи корректный Telegram username" }, { status: 400 });
       const target = await prisma.user.findFirst({ where: { username: { equals: username, mode: "insensitive" } }, select: { id: true, username: true, telegramId: true, isAdmin: true } });
       if (!target) return NextResponse.json({ error: "Игрок не найден. Он должен хотя бы один раз войти в GameHub" }, { status: 404 });
@@ -123,6 +123,7 @@ export async function POST(req: NextRequest) {
       if (!Number.isSafeInteger(amount) || amount === 0 || Math.abs(amount) > 100000 || reason.length < 5) return NextResponse.json({ error: "Укажи XP от -100000 до 100000 и причину от 5 символов" }, { status: 400 });
       const target = await prisma.user.findFirst({ where: { username: { equals: username, mode: "insensitive" } } });
       if (!target) return NextResponse.json({ error: "Игрок не найден" }, { status: 404 });
+      if (target.isAdmin || rootIds().includes(target.telegramId.toString())) return NextResponse.json({ error: "Нельзя менять XP владельца проекта" }, { status: 403 });
       const xp = Math.max(0, target.xp + amount);
       const applied = xp - target.xp;
       const level = Math.floor(Math.sqrt(xp / 100)) + 1;
