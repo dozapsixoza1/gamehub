@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
         gamesPlayed: user.gamesPlayed,
         gamesWon: user.gamesWon,
         isAdmin: user.isAdmin,
+        isVerified: user.isVerified,
       },
     });
   } catch (error) {
