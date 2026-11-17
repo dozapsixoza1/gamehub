@@ -29,7 +29,7 @@ model User {
   gamesWon      Int      @default(0)
   xp            Int      @default(0)
   level         Int      @default(1)
-  referralCode  String   @unique @default(cuid())
+  referralCode  String?  @unique
   referredById  String?
   dailyStreak   Int      @default(0)
   roleStats     Json     @default("{}")
