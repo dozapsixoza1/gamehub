@@ -7,7 +7,7 @@ import {useTelegram} from "@/components/layout/TelegramProvider";
 import {PlayerBadges} from "@/components/players/PlayerBadges";
 import {PlayerAvatar} from "@/components/players/PlayerAvatar";
 type Nft={id:string;serialNumber:number;acquiredAt:string;gift:{id:string;name:string;rarity:string;imageUrl:string}};
-type Player={id:string;username:string|null;displayName:string;avatar:string|null;isOnline:boolean;xp:number;level:number;gamesPlayed:number;gamesWon:number;winRate:number;isAdmin:boolean;isVerified:boolean;isOnline:boolean;nftOwnerships:Nft[]};
+type Player={id:string;username:string|null;displayName:string;avatar:string|null;xp:number;level:number;gamesPlayed:number;gamesWon:number;winRate:number;isAdmin:boolean;isVerified:boolean;isOnline:boolean;nftOwnerships:Nft[]};
 export default function PublicPlayerProfile(){
  const params=useParams<{id:string}>(),{initData}=useTelegram();
  const [player,setPlayer]=useState<Player|null>(null),[error,setError]=useState(""),[loading,setLoading]=useState(true);
