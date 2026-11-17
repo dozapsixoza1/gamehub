@@ -3,9 +3,8 @@
 import { useEffect, useState } from "react";
 import { useTelegram } from "@/components/layout/TelegramProvider";
 import Link from "next/link";
-import { Gem, Sparkles } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
-import { Coins, Gem, ShoppingBag } from "lucide-react";
+import { Coins, Gem, ShoppingBag, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ShopItemDTO } from "@/types";
 
