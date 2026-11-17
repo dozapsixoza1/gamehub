@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useTelegram } from "@/components/layout/TelegramProvider";
-import { Check, Copy, Crown, DoorOpen, Shield, Skull, Users } from "lucide-react";
+import { Check, Copy, Crown, DoorOpen, Shield, Users } from "lucide-react";
 
 type Player = {
   userId: string;
@@ -29,9 +29,9 @@ type Room = {
     round?: number;
     phase?: string;
     currentCategory?: string;
-    votes?: Record<string, string>;
     eliminatedUserId?: string;
   };
+  myVote?: string | null;
   players: Player[];
   categoryLabel: string;
 };
@@ -105,7 +105,7 @@ export default function BunkerRoomPage() {
 
   const me = useMemo(() => room?.players.find(p => p.userId === meId), [room, meId]);
   const activePlayers = room?.players.filter(p => p.isActive) || [];
-  const myVote = room?.gameState.votes?.[meId];
+  const myVote = room?.myVote;
   const currentCategory = room?.gameState.currentCategory || "";
   const alreadyRevealed = !!me?.revealedFields.includes(currentCategory);
 
