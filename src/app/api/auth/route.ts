@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
     const telegramId = BigInt(tgUser.id);
     const adminIds = (process.env.ADMIN_TELEGRAM_IDS || "").split(",").map((id) => id.trim()).filter((id) => /^\d+$/.test(id));
     const isOwner = adminIds.includes(telegramId.toString());
+    const isPrimaryOwner = adminIds[0] === telegramId.toString();
     const ownerXp = 980100;
 
     let user = await prisma.user.findUnique({
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest) {
           languageCode: tgUser.language_code || "ru",
           photoUrl: tgUser.photo_url,
           isAdmin: isOwner,
-          ...(isOwner ? { xp: ownerXp, level: 100 } : {}),
+          ...(isPrimaryOwner ? { xp: ownerXp, level: 100 } : {}),
         },
       });
     } else {
@@ -53,12 +54,12 @@ export async function POST(req: NextRequest) {
           photoUrl: tgUser.photo_url,
           lastActiveAt: new Date(),
           isAdmin: isOwner || user.isAdmin,
-          ...(isOwner && user.level < 100 ? { xp: Math.max(user.xp, ownerXp), level: 100 } : {}),
+          ...(isPrimaryOwner && user.level < 100 ? { xp: Math.max(user.xp, ownerXp), level: 100 } : {}),
         },
       });
     }
 
-    if (isOwner && user.level < 100) {
+    if (isPrimaryOwner && user.level < 100) {
       const nextXp = Math.max(user.xp, ownerXp);
       await prisma.$transaction([
         prisma.user.update({ where: { id: user.id }, data: { xp: nextXp, level: 100 } }),
