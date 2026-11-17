@@ -17,22 +17,45 @@ export async function GET(req: NextRequest) {
     if (!me) return NextResponse.json({ error: "Нет доступа" }, { status: 401 });
     const withId = req.nextUrl.searchParams.get("with") || "";
     const search = (req.nextUrl.searchParams.get("search") || "").trim().slice(0, 40);
+    const normalizedSearch = search.replace(/^@/, "");
 
     if (search.length >= 2) {
       const users = await prisma.user.findMany({
         where: { id: { not: me.id }, isBanned: false, OR: [
-          { username: { contains: search.replace(/^@/, ""), mode: "insensitive" } },
-          { firstName: { contains: search, mode: "insensitive" } }
+          { username: { contains: normalizedSearch, mode: "insensitive" } },
+          { firstName: { contains: normalizedSearch, mode: "insensitive" } },
+          { lastName: { contains: normalizedSearch, mode: "insensitive" } },
+          { settings: { is: { displayName: { contains: normalizedSearch, mode: "insensitive" } } } }
         ] },
-        select: { id: true, username: true, firstName: true, photoUrl: true },
+        select: {
+          id: true, username: true, firstName: true, lastName: true, photoUrl: true, lastActiveAt: true,
+          settings: { select: { displayName: true, avatarUrl: true } }
+        },
         take: 12
       });
-      return NextResponse.json({ users });
+      return NextResponse.json({ users: users.map(p => ({
+        id: p.id, username: p.username, firstName: p.firstName,
+        displayName: p.settings?.displayName || [p.firstName, p.lastName].filter(Boolean).join(" ") || p.username || "Игрок",
+        photoUrl: p.settings?.avatarUrl || p.photoUrl,
+        isOnline: Date.now() - p.lastActiveAt.getTime() < 90_000
+      })) });
     }
 
     if (withId) {
-      const target = await prisma.user.findFirst({ where: { id: withId, isBanned: false }, select: { id: true, username: true, firstName: true, photoUrl: true } });
-      if (!target || target.id === me.id) return NextResponse.json({ error: "Игрок не найден" }, { status: 404 });
+      const targetRecord = await prisma.user.findFirst({
+        where: { id: withId, isBanned: false },
+        select: {
+          id: true, username: true, firstName: true, lastName: true, photoUrl: true, lastActiveAt: true,
+          settings: { select: { displayName: true, avatarUrl: true } }
+        }
+      });
+      if (!targetRecord || targetRecord.id === me.id) return NextResponse.json({ error: "Игрок не найден" }, { status: 404 });
+      const target = {
+        id: targetRecord.id, username: targetRecord.username, firstName: targetRecord.firstName,
+        displayName: targetRecord.settings?.displayName || [targetRecord.firstName, targetRecord.lastName].filter(Boolean).join(" ") || targetRecord.username || "Игрок",
+        photoUrl: targetRecord.settings?.avatarUrl || targetRecord.photoUrl,
+        isOnline: Date.now() - targetRecord.lastActiveAt.getTime() < 90_000
+      };
       const [blockedByMe, blockedMe] = await Promise.all([
         prisma.userBlock.findUnique({ where: { blockerId_blockedId: { blockerId: me.id, blockedId: target.id } } }),
         prisma.userBlock.findUnique({ where: { blockerId_blockedId: { blockerId: target.id, blockedId: me.id } } })
@@ -49,8 +72,8 @@ export async function GET(req: NextRequest) {
     const recent = await prisma.directMessage.findMany({
       where: { OR: [{ senderId: me.id }, { recipientId: me.id }] },
       include: {
-        sender: { select: { id: true, username: true, firstName: true, photoUrl: true } },
-        recipient: { select: { id: true, username: true, firstName: true, photoUrl: true } }
+        sender: { select: { id: true, username: true, firstName: true, lastName: true, photoUrl: true, lastActiveAt: true, settings: { select: { displayName: true, avatarUrl: true } } } },
+        recipient: { select: { id: true, username: true, firstName: true, lastName: true, photoUrl: true, lastActiveAt: true, settings: { select: { displayName: true, avatarUrl: true } } } }
       },
       orderBy: { createdAt: "desc" }, take: 150
     });
@@ -58,7 +81,15 @@ export async function GET(req: NextRequest) {
     for (const message of recent) {
       const other = message.senderId === me.id ? message.recipient : message.sender;
       const current = map.get(other.id);
-      if (!current) map.set(other.id, { user: other, lastMessage: message, unread: 0 });
+      if (!current) map.set(other.id, {
+        user: {
+          id: other.id, username: other.username, firstName: other.firstName,
+          displayName: other.settings?.displayName || [other.firstName, other.lastName].filter(Boolean).join(" ") || other.username || "Игрок",
+          photoUrl: other.settings?.avatarUrl || other.photoUrl,
+          isOnline: Date.now() - other.lastActiveAt.getTime() < 90_000
+        },
+        lastMessage: message, unread: 0
+      });
     }
     const ids = [...map.keys()];
     if (ids.length) {
