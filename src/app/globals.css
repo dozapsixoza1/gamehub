@@ -83,3 +83,9 @@
   --border: 0 0% 82%;
   --input: 0 0% 82%;
 }
+
+@keyframes role-shimmer { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+.player-role { display:inline-flex; align-items:center; border:1px solid rgba(255,255,255,.16); border-radius:999px; padding:3px 8px; font-size:9px; line-height:1.2; font-weight:900; letter-spacing:.12em; background-size:200% 100%; animation:role-shimmer 3s linear infinite; }
+.player-role-default { color:#e5e7eb; border-color:rgba(209,213,219,.25); background-image:linear-gradient(100deg,#374151,#9ca3af,#4b5563,#d1d5db,#374151); }
+.player-role-admin { color:#fff; border-color:rgba(248,113,113,.5); background-image:linear-gradient(100deg,#7f1d1d,#ef4444,#991b1b,#fca5a5,#7f1d1d); }
+.player-verified { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:999px; color:white; background:#2563eb; box-shadow:0 0 12px rgba(59,130,246,.35); }
