@@ -66,7 +66,8 @@ export async function GET(req: NextRequest) {
         include: { sender: { select: { id: true, firstName: true, username: true } } }
       });
       await prisma.directMessage.updateMany({ where: { senderId: target.id, recipientId: me.id, readAt: null }, data: { readAt: new Date() } });
-      return NextResponse.json({ target, messages: messages.reverse(), blockedByMe: !!blockedByMe, blockedMe: !!blockedMe });
+      const targetView = { ...target, displayName: target.settings?.displayName || null, isOnline: Date.now() - target.lastActiveAt.getTime() < 90_000 };
+      return NextResponse.json({ target: targetView, messages: messages.reverse(), blockedByMe: !!blockedByMe, blockedMe: !!blockedMe });
     }
 
     const recent = await prisma.directMessage.findMany({
@@ -79,7 +80,8 @@ export async function GET(req: NextRequest) {
     });
     const map = new Map<string, { user: any; lastMessage: any; unread: number }>();
     for (const message of recent) {
-      const other = message.senderId === me.id ? message.recipient : message.sender;
+      const rawOther = message.senderId === me.id ? message.recipient : message.sender;
+      const other = { ...rawOther, displayName: rawOther.settings?.displayName || null, isOnline: Date.now() - rawOther.lastActiveAt.getTime() < 90_000 };
       const current = map.get(other.id);
       if (!current) map.set(other.id, {
         user: {
