@@ -43,6 +43,8 @@ model User {
   updatedAt     DateTime @updatedAt
   lastActiveAt  DateTime @default(now())
   settings      UserSettings?
+  adminStaff    AdminStaff?
+  xpTransactions XpTransaction[]
   roomMessages  RoomMessage[]
   roomReactions RoomReaction[]
   reportsMade   PlayerReport[] @relation("ReportAuthor")
@@ -406,4 +408,48 @@ model Season {
   isActive  Boolean  @default(false)
   createdAt DateTime @default(now())
   @@map("seasons")
+}
+
+
+model AdminStaff {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  role        String
+  permissions Json     @default("[]")
+  appointedBy BigInt
+  appointedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([role])
+  @@map("admin_staff")
+}
+
+model AdminActionLog {
+  id               String   @id @default(cuid())
+  actorTelegramId  BigInt
+  targetUserId     String?
+  action           String
+  reason           String?
+  metadata         Json?
+  createdAt        DateTime @default(now())
+
+  @@index([actorTelegramId, createdAt])
+  @@index([targetUserId, createdAt])
+  @@map("admin_action_logs")
+}
+
+model XpTransaction {
+  id              String   @id @default(cuid())
+  userId          String
+  amount          Int
+  balanceAfter    Int
+  source          String
+  reason          String
+  actorTelegramId BigInt?
+  createdAt       DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("xp_transactions")
 }
