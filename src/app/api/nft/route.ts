@@ -37,7 +37,7 @@ export async function POST(req:NextRequest){
     if(body.action!=="create_order")return NextResponse.json({error:"Неизвестное действие"},{status:400});
     const gift=await prisma.nftGift.findUnique({where:{id:String(body.giftId||"")}});
     if(!gift||!gift.isActive)return NextResponse.json({error:"Подарок не найден"},{status:404});
-    if(gift.supply!==null&&gift.issued>=gift.supply)return NextResponse.json({error:"Лимитированная серия закончилась"},{status:409});
+    if(gift.supply!==null){const pendingCount=await prisma.nftOrder.count({where:{giftId:gift.id,status:"PENDING"}});if(gift.issued+pendingCount>=gift.supply)return NextResponse.json({error:"Все экземпляры этой Limited-серии уже зарезервированы"},{status:409});}
     if(await prisma.userNft.findFirst({where:{userId:user.id,giftId:gift.id}}))return NextResponse.json({error:"Этот подарок уже есть в твоей коллекции"},{status:409});
     const pending=await prisma.nftOrder.findFirst({where:{userId:user.id,giftId:gift.id,status:"PENDING"}});
     if(pending)return NextResponse.json({success:true,orderId:pending.id,message:"Заявка уже создана"});
@@ -47,7 +47,8 @@ export async function POST(req:NextRequest){
     const text=["Новая заявка на NFT GameHub","Подарок: "+gift.name+" ["+gift.rarity+"]","Покупатель: "+buyer,"ID заявки: "+order.id,note?"Комментарий: "+note:"","Подтверди оплату и выдай подарок в админ-панели."].filter(Boolean).join("\n");
     const token=process.env.BOT_TOKEN,ids=ownerIds();
     if(token&&ids.length)await Promise.allSettled(ids.map(chatId=>fetch("https://api.telegram.org/bot"+token+"/sendMessage",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chat_id:chatId,text,disable_web_page_preview:true})})));
-    const owner = await prisma.user.findFirst({ where: { telegramId: { in: ownerIds().map(BigInt) } }, select: { username: true } });
+    const primaryOwnerId=ownerIds()[0];
+    const owner=primaryOwnerId?await prisma.user.findUnique({where:{telegramId:BigInt(primaryOwnerId)},select:{username:true}}):null;
     const ownerUsername=(owner?.username||process.env.OWNER_TELEGRAM_USERNAME||"").replace(/^@/,"");
     const contactUrl=ownerUsername?"https://t.me/"+ownerUsername+"?text="+encodeURIComponent("Здравствуйте! Хочу купить "+gift.name+". Заявка "+order.id):null;
     return NextResponse.json({success:true,orderId:order.id,contactUrl,message:"Заявка отправлена владельцу. Согласуй оплату в личных сообщениях."});
