@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
     const actor = await getActor(req.headers.get("x-init-data") || req.nextUrl.searchParams.get("initData") || "");
     if (!actor || !allowed(actor, "admin_access")) return NextResponse.json({ error: "Нет доступа к администрации" }, { status: 403 });
     const canViewUsers = allowed(actor, "users_view");
-    const [usersCount, bannedCount, verifiedCount, openReports, staff, logs, users] = await Promise.all([
+    const [usersCount, bannedCount, verifiedCount, openReports, reports, staff, logs, users] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({ where: { isBanned: true } }),
       prisma.user.count({ where: { isVerified: true } }),
