@@ -117,6 +117,7 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
           gamesPlayed: 12,
           gamesWon: 5,
           isAdmin: true,
+          isVerified: false,
         });
       }
       setIsLoading(false);

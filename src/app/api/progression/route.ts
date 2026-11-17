@@ -25,19 +25,7 @@ const achievementDefinitions = [
 ];
 
 async function ensureAchievements() {
-  for (const item of achievementDefinitions) {
-    await prisma.achievement.upsert({
-      where: { id: item.id },
-      create: item,
-      update: {
-        title: item.title,
-        description: item.description,
-        icon: item.icon,
-        xpReward: item.xpReward,
-        coinsReward: item.coinsReward,
-      },
-    });
-  }
+  await prisma.achievement.createMany({ data: achievementDefinitions, skipDuplicates: true });
 }
 
 export async function GET(req: NextRequest) {

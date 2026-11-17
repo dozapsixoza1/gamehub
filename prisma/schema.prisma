@@ -29,13 +29,14 @@ model User {
   gamesWon      Int      @default(0)
   xp            Int      @default(0)
   level         Int      @default(1)
-  referralCode  String?  @unique
+  referralCode  String   @unique @default(cuid())
   referredById  String?
   dailyStreak   Int      @default(0)
   roleStats     Json     @default("{}")
   lastDailyAt   DateTime?
   
   isAdmin       Boolean  @default(false)
+  isVerified    Boolean  @default(false)
   isBanned      Boolean  @default(false)
   
   createdAt     DateTime @default(now())

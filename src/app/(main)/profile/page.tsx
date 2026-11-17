@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { useTelegram } from "@/components/layout/TelegramProvider";
 import { formatNumber } from "@/lib/utils";
 import { Coins, Gem, Trophy, Gamepad2, Ticket, Gift, Users, Star, History, Crown, Copy, Settings } from "lucide-react";
+import { PlayerBadges } from "@/components/players/PlayerBadges";
+import { VerificationManager } from "@/components/players/VerificationManager";
 
 type ProgressData = {
   profile: {
@@ -87,7 +89,7 @@ export default function ProfilePage() {
         <div className="min-w-0">
           <h1 className="text-xl font-bold text-white truncate">{user.displayName || `${user.firstName || ""} ${user.lastName || ""}`.trim()}</h1>
           {user.username && <p className="text-white/40 text-sm">@{user.username}</p>}
-          <p className="text-xs text-white/40 mt-1">Игрок GameHub</p>
+          <div className="mt-2"><PlayerBadges isAdmin={user.isAdmin} isVerified={user.isVerified} /></div>
         </div>
       </div>
 
@@ -127,6 +129,8 @@ export default function ProfilePage() {
         <div className="flex items-center justify-between mb-3"><div className="flex items-center gap-2"><Star size={18} className="text-yellow-400" /><h2 className="font-semibold text-white">Достижения</h2></div><span className="text-xs text-white/40">{data?.achievements.length ?? 0}</span></div>
         {data?.achievements.length ? <div className="space-y-2">{data.achievements.map(a => <div key={a.id} className="flex items-center gap-3 bg-white/5 rounded-xl p-3"><span className="text-2xl">{a.achievement.icon}</span><div className="min-w-0 flex-1"><p className="text-sm font-medium text-white">{a.achievement.title}</p><p className="text-xs text-white/40">{a.achievement.description}</p></div></div>)}</div> : <p className="text-xs text-white/40">Пока нет открытых достижений. Играй и выполняй условия!</p>}
       </section>
+
+      <VerificationManager />
 
       <Link href="/settings" className="glass rounded-xl p-3 flex items-center gap-2 text-sm text-white"><Settings size={17}/>Настройки профиля</Link>
 

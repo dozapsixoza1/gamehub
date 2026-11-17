@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
       if (gameId === "all" && !season) {
         const users = await prisma.user.findMany({
           orderBy: [{ xp: "desc" }, { gamesWon: "desc" }], take: 100,
-          select: { id: true, username: true, firstName: true, photoUrl: true, xp: true, level: true, gamesPlayed: true, gamesWon: true },
+          select: { id: true, username: true, firstName: true, photoUrl: true, xp: true, level: true, gamesPlayed: true, gamesWon: true, isAdmin: true, isVerified: true },
         });
         return NextResponse.json({ users, season: null });
       }
@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
         _sum: { xpEarned: true },
       });
       const ids = grouped.sort((a,b) => (b._sum.xpEarned || 0) - (a._sum.xpEarned || 0)).slice(0,100);
-      const profiles = await prisma.user.findMany({ where: { id: { in: ids.map(x => x.userId) } }, select: { id:true, username:true, firstName:true, photoUrl:true, level:true, gamesPlayed:true, gamesWon:true } });
+      const profiles = await prisma.user.findMany({ where: { id: { in: ids.map(x => x.userId) } }, select: { id:true, username:true, firstName:true, photoUrl:true, level:true, gamesPlayed:true, gamesWon:true, isAdmin:true, isVerified:true } });
       const users = ids.map(x => ({ ...profiles.find(p => p.id === x.userId), xp: x._sum.xpEarned || 0, gamesInPeriod: x._count.id }));
       return NextResponse.json({ users, season: activeSeason });
     }
