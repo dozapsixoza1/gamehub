@@ -85,14 +85,6 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    if (!initData) return;
-    const heartbeat = () => fetch("/api/presence", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ initData }) }).catch(() => {});
-    heartbeat();
-    const timer = window.setInterval(heartbeat, 30_000);
-    return () => window.clearInterval(timer);
-  }, [initData]);
-
-  useEffect(() => {
     // Ждём загрузки Telegram WebApp
     const tg = (window as any).Telegram?.WebApp;
 
