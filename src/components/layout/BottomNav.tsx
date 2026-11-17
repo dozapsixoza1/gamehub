@@ -23,9 +23,9 @@ export function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 safe-bottom">
-      <div className="mx-auto max-w-lg">
-        <div className="mx-3 mb-3 rounded-2xl glass border border-white/10 shadow-2xl">
-          <div className="flex items-center justify-around py-2">
+      <div className="mx-auto w-full max-w-lg px-2">
+        <div className="mb-2 rounded-2xl glass border border-white/10 shadow-2xl">
+          <div className="flex w-full items-stretch py-1.5">
             {tabs.map((tab) => {
               const isActive =
                 tab.href === "/"
@@ -38,8 +38,9 @@ export function BottomNav() {
                 <Link
                   key={tab.href}
                   href={tab.href}
+                  aria-current={isActive ? "page" : undefined}
                   className={cn(
-                    "flex flex-col items-center gap-0.5 px-5 py-2 rounded-xl transition-all duration-200",
+                    "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-2 transition-all duration-200",
                     isActive
                       ? "text-white"
                       : "text-white/40 hover:text-white/70"
@@ -47,16 +48,16 @@ export function BottomNav() {
                 >
                   <div
                     className={cn(
-                      "p-1.5 rounded-xl transition-all",
+                      "rounded-xl p-1.5 transition-all",
                       isActive && "bg-white/10"
                     )}
                   >
                     <Icon
-                      size={22}
+                      size={20}
                       strokeWidth={isActive ? 2.2 : 1.8}
                     />
                   </div>
-                  <span className="text-[11px] font-medium tracking-wide">
+                  <span className="whitespace-nowrap text-[10px] font-medium leading-tight tracking-tight">
                     {tab.label}
                   </span>
                 </Link>
