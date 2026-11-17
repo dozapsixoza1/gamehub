@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     }
 
     const telegramId = BigInt(tgUser.id);
-    const adminIds = (process.env.ADMIN_TELEGRAM_IDS || "").split(",").map((id) => id.trim()).filter((id) => /^\\d+$/.test(id));
+    const adminIds = (process.env.ADMIN_TELEGRAM_IDS || "").split(",").map((id) => id.trim()).filter((id) => /^\d+$/.test(id));
     const isOwner = adminIds.includes(telegramId.toString());
     const ownerXp = 980100;
 
