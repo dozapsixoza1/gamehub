@@ -17,11 +17,11 @@ async function getAuthedUser(initData: string) {
 }
 
 const achievementDefinitions = [
-  { id: "first_game", title: "Первый матч", description: "Сыграть первую партию", icon: "🎮", xpReward: 25, coinsReward: 25 },
-  { id: "games_10", title: "Постоянный игрок", description: "Сыграть 10 матчей", icon: "🔥", xpReward: 75, coinsReward: 75 },
-  { id: "wins_5", title: "Победитель", description: "Одержать 5 побед", icon: "🏆", xpReward: 100, coinsReward: 100 },
-  { id: "games_50", title: "Ветеран", description: "Сыграть 50 матчей", icon: "⭐", xpReward: 250, coinsReward: 250 },
-  { id: "wins_25", title: "Легенда", description: "Одержать 25 побед", icon: "👑", xpReward: 500, coinsReward: 500 },
+  { id: "first_game", title: "Первый матч", description: "Сыграть первую партию", icon: "🪩", xpReward: 25, coinsReward: 25 },
+  { id: "games_10", title: "Постоянный игрок", description: "Сыграть 10 матчей", icon: "🪬", xpReward: 75, coinsReward: 75 },
+  { id: "wins_5", title: "Победитель", description: "Одержать 5 побед", icon: "💠", xpReward: 100, coinsReward: 100 },
+  { id: "games_50", title: "Ветеран", description: "Сыграть 50 матчей", icon: "🪽", xpReward: 250, coinsReward: 250 },
+  { id: "wins_25", title: "Легенда", description: "Одержать 25 побед", icon: "🪐", xpReward: 500, coinsReward: 500 },
 ];
 
 async function ensureAchievements() {
