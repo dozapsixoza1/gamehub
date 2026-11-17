@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTelegram } from "@/components/layout/TelegramProvider";
-import { ArrowLeft, Shield, Users, Ban, Star, ScrollText, UserPlus, Gift, PackageCheck } from "lucide-react";
+import { ArrowLeft, Shield, Users, Ban, Star, ScrollText, UserPlus, Gift, PackageCheck, Gem } from "lucide-react";
 
 type PanelData = {
   actor: { root: boolean; role: string | null; permissions: string[] };
