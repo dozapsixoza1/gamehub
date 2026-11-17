@@ -17,6 +17,7 @@ type ProgressData = {
   achievements: { id: string; unlockedAt: string; achievement: { title: string; description: string; icon: string; xpReward: number; coinsReward: number } }[];
   history: { id: string; gameId: string; result: string; winner: string | null; summary: string | null; playersCount: number; xpEarned: number; coinsEarned: number; playedAt: string }[];
   leaderboard: { id: string; username: string | null; firstName: string | null; xp: number; level: number; gamesPlayed: number; gamesWon: number }[];
+  xpTransactions: { id: string; amount: number; balanceAfter: number; source: string; reason: string; createdAt: string }[];
 };
 
 export default function ProfilePage() {
@@ -128,6 +129,11 @@ export default function ProfilePage() {
       <section className="glass rounded-2xl p-4">
         <div className="flex items-center justify-between mb-3"><div className="flex items-center gap-2"><Star size={18} className="text-yellow-400" /><h2 className="font-semibold text-white">Достижения</h2></div><span className="text-xs text-white/40">{data?.achievements.length ?? 0}</span></div>
         {data?.achievements.length ? <div className="space-y-2">{data.achievements.map(a => <div key={a.id} className="flex items-center gap-3 bg-white/5 rounded-xl p-3"><span className="text-2xl">{a.achievement.icon}</span><div className="min-w-0 flex-1"><p className="text-sm font-medium text-white">{a.achievement.title}</p><p className="text-xs text-white/40">{a.achievement.description}</p></div></div>)}</div> : <p className="text-xs text-white/40">Пока нет открытых достижений. Играй и выполняй условия!</p>}
+      </section>
+
+      <section className="glass rounded-2xl p-4">
+        <div className="flex items-center gap-2 mb-3"><History size={18} className="text-primary"/><h2 className="font-semibold text-white">История XP</h2></div>
+        {data?.xpTransactions?.length ? <div className="space-y-2">{data.xpTransactions.map(tx=><div key={tx.id} className="flex items-center justify-between gap-3 rounded-xl bg-white/5 p-3"><div className="min-w-0"><p className="text-sm text-white truncate">{tx.reason}</p><p className="text-[11px] text-white/40">{tx.source} · {new Date(tx.createdAt).toLocaleString("ru-RU")}</p></div><div className="text-right shrink-0"><p className={`text-sm font-bold ${tx.amount>=0?"text-emerald-400":"text-red-400"}`}>{tx.amount>0?"+":""}{tx.amount} XP</p><p className="text-[10px] text-white/35">Баланс: {tx.balanceAfter}</p></div></div>)}</div> : <p className="text-xs text-white/40">История начислений появится после первой операции XP через администрацию.</p>}
       </section>
 
       <VerificationManager />
