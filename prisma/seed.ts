@@ -50,6 +50,35 @@ const SHOP_ITEMS = [
     sortOrder: 5,
   },
 
+  // === БУНКЕР ===
+  {
+    name: "Карточка «Дополнительный навык»",
+    description: "Косметическая карточка персонажа для профиля Бункера",
+    gameId: "bunker",
+    category: "skins",
+    priceCoins: 450,
+    priceGems: 0,
+    sortOrder: 6,
+  },
+  {
+    name: "Рамка «Последний рубеж»",
+    description: "Оформление профиля в стиле Бункера",
+    gameId: "bunker",
+    category: "skins",
+    priceCoins: 700,
+    priceGems: 0,
+    sortOrder: 7,
+  },
+  {
+    name: "Талон снабжения",
+    description: "Косметический предмет коллекции Бункера",
+    gameId: "bunker",
+    category: "collectibles",
+    priceCoins: 0,
+    priceGems: 18,
+    sortOrder: 8,
+  },
+
   // === ОБЩЕЕ ===
   {
     name: "Пакет 500 монет",
