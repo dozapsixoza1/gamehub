@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useTelegram } from "@/components/layout/TelegramProvider";
-import { ArrowLeft, Gem, Crown, Sparkles, LockKeyhole, PackageCheck, Send, X } from "lucide-react";
+import { ArrowLeft, Gem, Sparkles, LockKeyhole, PackageCheck, Send, X } from "lucide-react";
 
 type Gift={id:string;slug:string;name:string;description:string;rarity:string;imageUrl:string;supply:number|null;issued:number;remaining:number|null};
 type Owned={id:string;acquiredAt:string;gift:Gift};
