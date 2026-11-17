@@ -66,8 +66,7 @@ export async function GET(req: NextRequest) {
         include: { sender: { select: { id: true, firstName: true, username: true } } }
       });
       await prisma.directMessage.updateMany({ where: { senderId: target.id, recipientId: me.id, readAt: null }, data: { readAt: new Date() } });
-      const targetView = { ...target, displayName: target.settings?.displayName || null, isOnline: Date.now() - target.lastActiveAt.getTime() < 90_000 };
-      return NextResponse.json({ target: targetView, messages: messages.reverse(), blockedByMe: !!blockedByMe, blockedMe: !!blockedMe });
+      return NextResponse.json({ target, messages: messages.reverse(), blockedByMe: !!blockedByMe, blockedMe: !!blockedMe });
     }
 
     const recent = await prisma.directMessage.findMany({
