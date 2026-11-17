@@ -37,6 +37,9 @@ function applySettings(s: Settings) {
   root.dataset.background=s.backgroundStyle||"aurora";
   root.dataset.compact=s.compactMode?"true":"false";
   root.dataset.animations=s.animations?"true":"false";
+  const tg=(window as any).Telegram?.WebApp;
+  const shellColor=s.theme==="light"?"#f5f5f5":s.theme==="ocean"?"#071923":s.theme==="forest"?"#0b1711":s.theme==="amoled"?"#000000":s.theme==="midnight"?"#0a0d1b":s.theme==="red"?"#190909":"#0a0a0a";
+  try { tg?.setHeaderColor?.(shellColor); tg?.setBackgroundColor?.(shellColor); } catch {}
 }
 export default function SettingsPage() {
   const { initData } = useTelegram();
