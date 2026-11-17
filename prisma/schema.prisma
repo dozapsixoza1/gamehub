@@ -356,6 +356,10 @@ model UserSettings {
   soundEnabled   Boolean  @default(true)
   notifications  Boolean  @default(true)
   language       String   @default("ru")
+  accentColor    String   @default("ruby")
+  compactMode    Boolean  @default(false)
+  animations     Boolean  @default(true)
+  backgroundStyle String  @default("aurora")
   updatedAt      DateTime @updatedAt
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@map("user_settings")
