@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     const adminIds = (process.env.ADMIN_TELEGRAM_IDS || "").split(",").map((id) => id.trim()).filter((id) => /^\d+$/.test(id));
     const isOwner = adminIds.includes(telegramId.toString());
     const isPrimaryOwner = adminIds[0] === telegramId.toString();
-    const ownerXp = 980100;
+    const ownerXp = 990000;
 
     let user = await prisma.user.findUnique({
       where: { telegramId },
