@@ -54,6 +54,7 @@ function pick<T>(items: readonly T[]): T {
 
 function safeRoom(room: any, userId: string) {
   const state = (room.gameState || {}) as GameState;
+  const { votes, ...publicState } = state;
   const players = room.players.map((player: any) => {
     const card = (player.character || {}) as Record<string, string>;
     const visibleFields = player.userId === userId ? Object.keys(card) : player.revealedFields;
@@ -82,7 +83,8 @@ function safeRoom(room: any, userId: string) {
     minPlayers: room.minPlayers,
     startedAt: room.startedAt,
     finishedAt: room.finishedAt,
-    gameState: state,
+    gameState: publicState,
+    myVote: votes?.[userId] || null,
     players,
     categoryLabel: CATEGORY_LABELS[state.currentCategory] || "",
   };
