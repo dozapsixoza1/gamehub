@@ -135,14 +135,15 @@ export async function POST(req: NextRequest) {
       const orderId = String(body.orderId || "");
       const order = await prisma.nftOrder.findUnique({ where: { id: orderId }, include: { gift: true } });
       if (!order || order.status !== "PENDING") return NextResponse.json({ error: "Заявка не найдена или уже обработана" }, { status: 404 });
-      if (order.gift.supply !== null && order.gift.issued >= order.gift.supply) return NextResponse.json({ error: "Лимит выпуска этого подарка исчерпан" }, { status: 409 });
-      const serialNumber = (await prisma.userNft.count({ where: { giftId: order.giftId } })) + 1;
-      await prisma.$transaction([
-        prisma.userNft.create({ data: { userId: order.userId, giftId: order.giftId, orderId: order.id, serialNumber } }),
-        prisma.nftGift.update({ where: { id: order.giftId }, data: { issued: { increment: 1 } } }),
-        prisma.nftOrder.update({ where: { id: order.id }, data: { status: "DELIVERED", adminNote: reason || "Выдано владельцем" } }),
-        prisma.adminActionLog.create({ data: { actorTelegramId: actor.telegramId, targetUserId: order.userId, action: "nft_issued", reason: reason || "NFT выдан", metadata: { orderId, giftId: order.giftId, serialNumber } } })
-      ]);
+      await prisma.$transaction(async (tx) => {
+        const changed = await tx.nftOrder.updateMany({ where: { id: order.id, status: "PENDING" }, data: { status: "DELIVERED", adminNote: reason || "Выдано владельцем после подтверждения оплаты" } });
+        if (changed.count !== 1) throw new Error("Заявка уже обработана");
+        const gift = await tx.nftGift.update({ where: { id: order.giftId }, data: { issued: { increment: 1 } } });
+        if (gift.supply !== null && gift.issued > gift.supply) throw new Error("Лимит выпуска этого подарка исчерпан");
+        const serialNumber = gift.issued;
+        await tx.userNft.create({ data: { userId: order.userId, giftId: order.giftId, orderId: order.id, serialNumber } });
+        await tx.adminActionLog.create({ data: { actorTelegramId: actor.telegramId, targetUserId: order.userId, action: "nft_issued", reason: reason || "NFT выдан после подтверждения оплаты", metadata: { orderId, giftId: order.giftId, serialNumber } } });
+      });
       return NextResponse.json({ success: true, message: order.gift.name + " выдан игроку" });
     }
 
@@ -195,23 +196,6 @@ export async function POST(req: NextRequest) {
       if (!target) return NextResponse.json({ error: "Игрок не найден" }, { status: 404 });
       await logAction(actor.telegramId, "admin_note_added", target.id, "Внутренняя заметка", { note: reason });
       return NextResponse.json({ success: true, message: "Внутренняя заметка сохранена" });
-    }
-
-    if (action === "approve_nft_order") {
-      if (!actor.root) return NextResponse.json({ error: "Выдавать NFT может только владелец проекта" }, { status: 403 });
-      const orderId = String(body.orderId || "");
-      if (!orderId) return NextResponse.json({ error: "Не указана заявка" }, { status: 400 });
-      const order = await prisma.nftOrder.findUnique({ where: { id: orderId }, include: { gift: true, user: true } });
-      if (!order || order.status !== "PENDING") return NextResponse.json({ error: "Заявка уже обработана или не найдена" }, { status: 404 });
-      if (order.gift.supply !== null && order.gift.issued >= order.gift.supply) return NextResponse.json({ error: "Лимитированная серия закончилась" }, { status: 409 });
-      await prisma.$transaction(async (tx) => {
-        const changed = await tx.nftOrder.updateMany({ where: { id: order.id, status: "PENDING" }, data: { status: "DELIVERED", adminNote: reason || "Оплата подтверждена владельцем" } });
-        if (changed.count !== 1) throw new Error("Заявка уже обработана");
-        await tx.userNft.create({ data: { userId: order.userId, giftId: order.giftId, orderId: order.id, serialNumber: order.gift.issued + 1 } });
-        await tx.nftGift.update({ where: { id: order.giftId }, data: { issued: { increment: 1 } } });
-        await tx.adminActionLog.create({ data: { actorTelegramId: actor.telegramId, targetUserId: order.userId, action: "nft_gift_delivered", reason: reason || "NFT выдан после подтверждения оплаты", metadata: { orderId: order.id, giftId: order.giftId, giftName: order.gift.name } } });
-      });
-      return NextResponse.json({ success: true, message: "NFT выдан игроку в коллекцию" });
     }
 
     if (action === "reject_nft_order") {
