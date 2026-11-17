@@ -473,6 +473,8 @@ model NftGift {
   description String
   rarity      String
   imageUrl    String
+  supply      Int?
+  issued      Int      @default(0)
   isActive    Boolean  @default(true)
   sortOrder   Int      @default(0)
   createdAt   DateTime @default(now())
