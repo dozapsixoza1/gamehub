@@ -24,7 +24,7 @@ export const GAMES: GameInfo[] = [
     id: "bunker",
     name: "Бункер",
     description: "Кто достоин места в бункере после апокалипсиса?",
-    status: "coming_soon",
+    status: "active",
     players: "4–16",
     icon: "Shield",
     gradient: "from-slate-900 via-zinc-800 to-black",

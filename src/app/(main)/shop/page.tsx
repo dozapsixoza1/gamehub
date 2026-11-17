@@ -11,6 +11,7 @@ import type { ShopItemDTO } from "@/types";
 const CATEGORIES = [
   { id: "all", label: "Все" },
   { id: "mafia", label: "Мафия" },
+  { id: "bunker", label: "Бункер" },
   { id: "global", label: "Общее" },
   { id: "boosts", label: "Бусты" },
 ];
