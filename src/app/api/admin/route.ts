@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
       actor: { root: actor.root, role: actor.role, permissions: actor.permissions },
       roles: Object.entries(ROLE_LABELS).map(([id, label]) => ({ id, label, permissions: ROLE_PERMISSIONS[id] })),
       stats: { users: usersCount, banned: bannedCount, verified: verifiedCount, openReports },
-      staff, logs, users,
+      staff, logs, users, reports,
     });
   } catch (error) {
     console.error("Admin GET:", error);
