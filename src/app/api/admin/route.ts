@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
     const actor = await getActor(req.headers.get("x-init-data") || req.nextUrl.searchParams.get("initData") || "");
     if (!actor || !allowed(actor, "admin_access")) return NextResponse.json({ error: "Нет доступа к администрации" }, { status: 403 });
     const canViewUsers = allowed(actor, "users_view");
-    const [usersCount, bannedCount, verifiedCount, openReports, reports, staff, logs, users] = await Promise.all([
+    const [usersCount, bannedCount, verifiedCount, openReports, reports, staff, logs, users, warnings, notes] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({ where: { isBanned: true } }),
       prisma.user.count({ where: { isVerified: true } }),
@@ -72,12 +72,14 @@ export async function GET(req: NextRequest) {
       prisma.adminStaff.findMany({ include: { user: { select: { id: true, username: true, firstName: true, isBanned: true } } }, orderBy: { appointedAt: "desc" }, take: 100 }),
       allowed(actor, "logs_view") ? prisma.adminActionLog.findMany({ orderBy: { createdAt: "desc" }, take: 50 }) : Promise.resolve([]),
       canViewUsers ? prisma.user.findMany({ orderBy: { createdAt: "desc" }, take: 50, select: { id: true, username: true, firstName: true, xp: true, level: true, isBanned: true, isVerified: true, isAdmin: true } }) : Promise.resolve([]),
+      allowed(actor, "users_ban") ? prisma.adminActionLog.findMany({ where: { action: "warning_issued" }, orderBy: { createdAt: "desc" }, take: 30 }) : Promise.resolve([]),
+      allowed(actor, "logs_view") ? prisma.adminActionLog.findMany({ where: { action: "admin_note_added" }, orderBy: { createdAt: "desc" }, take: 30 }) : Promise.resolve([]),
     ]);
     return NextResponse.json({
       actor: { root: actor.root, role: actor.role, permissions: actor.permissions },
       roles: Object.entries(ROLE_LABELS).map(([id, label]) => ({ id, label, permissions: ROLE_PERMISSIONS[id] })),
       stats: { users: usersCount, banned: bannedCount, verified: verifiedCount, openReports },
-      staff, logs, users, reports,
+      staff, logs, users, reports, warnings, notes,
     });
   } catch (error) {
     console.error("Admin GET:", error);
@@ -146,6 +148,25 @@ export async function POST(req: NextRequest) {
         prisma.adminActionLog.create({ data: { actorTelegramId: actor.telegramId, targetUserId: target.id, action: body.banned ? "user_banned" : "user_unbanned", reason } }),
       ]);
       return NextResponse.json({ success: true, message: body.banned ? "Игрок заблокирован" : "Блокировка снята" });
+    }
+
+    if (action === "issue_warning") {
+      if (!allowed(actor, "users_ban")) return NextResponse.json({ error: "Нет права выдавать предупреждения" }, { status: 403 });
+      if (!/^[a-z0-9_]{5,32}$/.test(username) || reason.length < 5) return NextResponse.json({ error: "Укажи username и причину предупреждения" }, { status: 400 });
+      const target = await prisma.user.findFirst({ where: { username: { equals: username, mode: "insensitive" } } });
+      if (!target) return NextResponse.json({ error: "Игрок не найден" }, { status: 404 });
+      if (target.isAdmin || rootIds().includes(target.telegramId.toString()) || target.id === actor.user.id) return NextResponse.json({ error: "Нельзя выдать предупреждение владельцу или себе" }, { status: 403 });
+      await logAction(actor.telegramId, "warning_issued", target.id, reason, { points: 1 });
+      return NextResponse.json({ success: true, message: "Предупреждение выдано и записано в историю" });
+    }
+
+    if (action === "add_note") {
+      if (!allowed(actor, "logs_view")) return NextResponse.json({ error: "Нет права добавлять внутренние заметки" }, { status: 403 });
+      if (!/^[a-z0-9_]{5,32}$/.test(username) || reason.length < 5) return NextResponse.json({ error: "Укажи username и текст заметки" }, { status: 400 });
+      const target = await prisma.user.findFirst({ where: { username: { equals: username, mode: "insensitive" } } });
+      if (!target) return NextResponse.json({ error: "Игрок не найден" }, { status: 404 });
+      await logAction(actor.telegramId, "admin_note_added", target.id, "Внутренняя заметка", { note: reason });
+      return NextResponse.json({ success: true, message: "Внутренняя заметка сохранена" });
     }
 
     if (action === "resolve_report") {
