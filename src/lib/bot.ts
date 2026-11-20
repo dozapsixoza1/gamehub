@@ -1,6 +1,7 @@
 import { Bot, Context, InlineKeyboard, session } from "grammy";
 import { prisma } from "./prisma";
 import { nanoid } from "nanoid";
+import { registerGroupGames } from "./group-games";
 
 // ======================
 // ТИПЫ СЕССИИ
@@ -34,6 +35,9 @@ export const bot = new Bot<MyContext>(token || "dummy");
 
 // Сессия (в памяти — для продакшена лучше Redis)
 bot.use(session({ initial: (): SessionData => ({}) }));
+
+// Групповые игры GameHub
+registerGroupGames(bot);
 
 // ======================
 // ХЕЛПЕРЫ
@@ -105,7 +109,8 @@ bot.command("start", async (ctx) => {
   await ctx.reply(
     `Добро пожаловать в <b>Игровой Хаб</b>!\n\n` +
       `У тебя <b>${user.coins}</b> монет и <b>${user.gems}</b> гемов.\n\n` +
-      `Нажми кнопку ниже, чтобы открыть приложение.`,
+      `Нажми кнопку ниже, чтобы открыть приложение.\n\n` +
+      `<b>Игры в группах:</b> добавь бота в чат и напиши /game.`,
     {
       parse_mode: "HTML",
       reply_markup: keyboard,

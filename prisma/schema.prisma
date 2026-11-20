@@ -555,3 +555,25 @@ model MessageReport {
   @@index([status, createdAt])
   @@map("message_reports")
 }
+
+
+// ======================
+// GROUP CHAT GAMES
+// ======================
+
+model GroupGameRoom {
+  id        String   @id @default(cuid())
+  chatId    BigInt
+  messageId Int?
+  hostId    BigInt
+  gameId    String
+  status    String   @default("WAITING")
+  players   Json     @default("[]")
+  state     Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([chatId, status])
+  @@index([status, createdAt])
+  @@map("group_game_rooms")
+}
