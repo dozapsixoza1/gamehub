@@ -380,13 +380,32 @@ export async function POST(req: NextRequest) {
       return jsonError("Комната не найдена", 404);
     }
 
-    const me = room.players.find(
-      p => p.userId === user.id
-    );
+    let me = room.players.find(p => p.userId === user.id);
+
+    // Opening a valid invitation deep link joins the player while the lobby is waiting.
+    if (!me && room.status === "WAITING" && room.players.length < room.maxPlayers) {
+      await prisma.mafiaPlayer.createMany({
+        data: [{ roomId, userId: user.id, seatNumber: room.players.length + 1 }],
+        skipDuplicates: true,
+      });
+      room = await prisma.mafiaRoom.findUnique({
+        where: { id: roomId },
+        include: {
+          players: {
+            include: {
+              user: { select: { id: true, firstName: true, lastName: true, username: true, photoUrl: true } },
+            },
+            orderBy: { seatNumber: "asc" },
+          },
+        },
+      });
+      if (!room) return jsonError("Комната не найдена", 404);
+      me = room.players.find(p => p.userId === user.id);
+    }
 
     if (!me) {
       return jsonError(
-        "Ты не участник этой комнаты",
+        room.status !== "WAITING" ? "Игра уже началась — вход закрыт" : "Комната заполнена",
         403
       );
     }
@@ -744,7 +763,7 @@ export async function GET(req: NextRequest) {
       return jsonError("Нет доступа", 401);
     }
 
-    const room = await prisma.mafiaRoom.findUnique({
+    let room = await prisma.mafiaRoom.findUnique({
       where: { id: roomId },
       include: {
         players: {
