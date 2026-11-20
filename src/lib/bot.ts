@@ -1,6 +1,7 @@
 import { Bot, Context, InlineKeyboard, session } from "grammy";
 import { prisma } from "./prisma";
 import { nanoid } from "nanoid";
+import { registerGroupGames } from "./group-games";
 
 // ======================
 // ТИПЫ СЕССИИ
@@ -34,6 +35,9 @@ export const bot = new Bot<MyContext>(token || "dummy");
 
 // Сессия (в памяти — для продакшена лучше Redis)
 bot.use(session({ initial: (): SessionData => ({}) }));
+
+// Групповые игры GameHub
+registerGroupGames(bot);
 
 // ======================
 // ХЕЛПЕРЫ
