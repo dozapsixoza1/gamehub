@@ -99,22 +99,36 @@ bot.command("start", async (ctx) => {
   const user = await ensureUser(ctx);
   if (!user) return;
 
-  const webAppUrl = process.env.NEXT_PUBLIC_APP_URL || "https://your-app.vercel.app";
+  const webAppUrl = process.env.NEXT_PUBLIC_APP_URL || "https://gamehub.vercel.app";
+  const startParam = ctx.match?.trim() || "";
+  const mafiaMatch = startParam.match(/^mafia_([A-Z0-9]{4,10})$/i);
 
-  const keyboard = new InlineKeyboard().webApp(
-    "Играть",
-    webAppUrl
-  );
+  if (mafiaMatch) {
+    const code = mafiaMatch[1].toUpperCase();
+    const room = await prisma.mafiaRoom.findUnique({ where: { code } });
+    if (!room || room.status !== "WAITING") {
+      await ctx.reply("Эта комната Мафии уже недоступна. Создай новую командой /game в группе.");
+      return;
+    }
 
+    const keyboard = new InlineKeyboard().webApp(
+      "💀 Открыть комнату Мафии",
+      `${webAppUrl}/mafia/${room.id}`
+    );
+    await ctx.reply(
+      "Приглашение в Мафию принято!\n\nКомната: <b>" + room.code + "</b>\nНажми кнопку ниже, чтобы войти. Вход произойдёт автоматически.",
+      { parse_mode: "HTML", reply_markup: keyboard }
+    );
+    return;
+  }
+
+  const keyboard = new InlineKeyboard().webApp("Играть", webAppUrl);
   await ctx.reply(
     `Добро пожаловать в <b>Игровой Хаб</b>!\n\n` +
       `У тебя <b>${user.coins}</b> монет и <b>${user.gems}</b> гемов.\n\n` +
       `Нажми кнопку ниже, чтобы открыть приложение.\n\n` +
-      `<b>Игры в группах:</b> добавь бота в чат и напиши /game.`,
-    {
-      parse_mode: "HTML",
-      reply_markup: keyboard,
-    }
+      `<b>Доступная игра:</b> Мафия. В групповом чате напиши /game, чтобы сразу создать комнату и получить ссылку.`,
+    { parse_mode: "HTML", reply_markup: keyboard }
   );
 });
 
