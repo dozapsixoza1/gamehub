@@ -91,6 +91,24 @@ async function ensureUser(ctx: MyContext) {
   return user;
 }
 
+// Inline-меню: пользователь вводит @gamehubesbot в любом чате и выбирает Мафию.
+bot.on("inline_query", async (ctx) => {
+  await ctx.answerInlineQuery(
+    [
+      {
+        type: "article",
+        id: "create-mafia-room",
+        title: "💀 Создать комнату Мафии",
+        description: "Вставить команду создания комнаты прямо в чат",
+        input_message_content: {
+          message_text: "/game@gamehubesbot",
+        },
+      },
+    ],
+    { cache_time: 0, is_personal: true },
+  );
+});
+
 // ======================
 // КОМАНДЫ
 // ======================
