@@ -2,26 +2,46 @@ name: DB Setup
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "prisma/schema.prisma"
+      - ".github/workflows/db-setup.yml"
+
+concurrency:
+  group: gamehub-database-schema
+  cancel-in-progress: false
 
 jobs:
   setup:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
-      - name: Install
-        run: npm install
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Create tables
+      - name: Check database connection secret
+        env:
+          DATABASE_URL: ${{ secrets.DIRECT_URL || secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::Add DIRECT_URL (recommended) or DATABASE_URL in GitHub repository Actions secrets."
+            exit 1
+          fi
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+        env:
+          DATABASE_URL: ${{ secrets.DIRECT_URL || secrets.DATABASE_URL }}
+
+      - name: Apply database schema
         run: npx prisma db push
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-
-      - name: Seed shop items
-        run: npm run db:seed
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DIRECT_URL || secrets.DATABASE_URL }}
