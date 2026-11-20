@@ -185,12 +185,30 @@ export function registerGroupGames(bot: Bot<any>) {
       .text("🃏 Тубо — карточная битва", "gg:create:tubo");
     await ctx.reply("🎮 <b>GameHub — игры в чате</b>\n\nВыбирай игру. Комната появится прямо здесь, а остальные участники смогут присоединиться кнопкой.", {
       parse_mode: "HTML",
-      reply_markup: keyboard,
+      reply_markup: keyboard || new InlineKeyboard(),
     });
   };
 
   bot.command("game", showCatalog);
   bot.command("games", showCatalog);
+
+  bot.command("gamecancel", async (ctx: Context) => {
+    if (!ctx.chat || !ctx.from || !["group", "supergroup"].includes(ctx.chat.type)) return;
+    const room = await prisma.groupGameRoom.findFirst({
+      where: { chatId: BigInt(ctx.chat.id), status: { in: ["WAITING", "PLAYING"] } },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!room) {
+      await ctx.reply("В этом чате нет активной игровой комнаты.");
+      return;
+    }
+    if (String(room.hostId) !== String(ctx.from.id)) {
+      await ctx.reply("Отменить игру может только создатель комнаты.");
+      return;
+    }
+    await prisma.groupGameRoom.update({ where: { id: room.id }, data: { status: "CANCELLED" } });
+    await updateRoomMessage(ctx, room, "⛔ <b>Игра отменена создателем комнаты.</b>");
+  });
 
   bot.callbackQuery(/^gg:create:(quiz|sort|tubo)$/, async (ctx: any) => {
     await ctx.answerCallbackQuery();
@@ -198,6 +216,14 @@ export function registerGroupGames(bot: Bot<any>) {
     const from = ctx.from;
     if (!chat || !from || !["group", "supergroup"].includes(chat.type)) return;
     const gameId = ctx.match[1] as GameId;
+    await prisma.groupGameRoom.updateMany({
+      where: {
+        chatId: BigInt(chat.id),
+        status: { in: ["WAITING", "PLAYING"] },
+        updatedAt: { lt: new Date(Date.now() - 6 * 60 * 60 * 1000) },
+      },
+      data: { status: "EXPIRED" },
+    });
     const existing = await prisma.groupGameRoom.findFirst({
       where: { chatId: BigInt(chat.id), status: { in: ["WAITING", "PLAYING"] } },
     });
