@@ -371,7 +371,7 @@ export async function POST(req: NextRequest) {
       return jsonError("Не указан roomId");
     }
 
-    const room = await prisma.mafiaRoom.findUnique({
+    let room = await prisma.mafiaRoom.findUnique({
       where: { id: roomId },
       include: { players: true }
     });
@@ -790,13 +790,32 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const me = room.players.find(
-      p => p.userId === user.id
-    );
+    let me = room.players.find(p => p.userId === user.id);
+
+    // Invitation links automatically add players to an open lobby.
+    if (!me && room.status === "WAITING" && room.players.length < room.maxPlayers) {
+      await prisma.mafiaPlayer.createMany({
+        data: [{ roomId, userId: user.id, seatNumber: room.players.length + 1 }],
+        skipDuplicates: true,
+      });
+      room = await prisma.mafiaRoom.findUnique({
+        where: { id: roomId },
+        include: {
+          players: {
+            include: {
+              user: { select: { id: true, firstName: true, lastName: true, username: true, photoUrl: true } },
+            },
+            orderBy: { seatNumber: "asc" },
+          },
+        },
+      });
+      if (!room) return jsonError("Комната не найдена", 404);
+      me = room.players.find(p => p.userId === user.id);
+    }
 
     if (!me) {
       return jsonError(
-        "Ты не участник этой комнаты",
+        room.status !== "WAITING" ? "Игра уже началась — вход закрыт" : "Комната заполнена",
         403
       );
     }
