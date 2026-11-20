@@ -174,7 +174,7 @@ async function startTuboRound(ctx: Context, room: any, players: Player[], state:
 }
 
 export function registerGroupGames(bot: Bot<any>) {
-  const showCatalog = async (ctx: Context) => {
+  const showCatalog = async (ctx: any) => {
     if (!ctx.chat || !["group", "supergroup"].includes(ctx.chat.type)) {
       await ctx.reply("Добавь @gamehubesbot в групповой чат и напиши там /game.");
       return;
@@ -192,7 +192,7 @@ export function registerGroupGames(bot: Bot<any>) {
   bot.command("game", showCatalog);
   bot.command("games", showCatalog);
 
-  bot.command("gamecancel", async (ctx: Context) => {
+  bot.command("gamecancel", async (ctx: any) => {
     if (!ctx.chat || !ctx.from || !["group", "supergroup"].includes(ctx.chat.type)) return;
     const room = await prisma.groupGameRoom.findFirst({
       where: { chatId: BigInt(ctx.chat.id), status: { in: ["WAITING", "PLAYING"] } },
