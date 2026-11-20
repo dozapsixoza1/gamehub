@@ -84,7 +84,7 @@ async function updateRoomMessage(ctx: Context, room: any, text: string, keyboard
   const chatId = Number(room.chatId);
   if (room.messageId) {
     try {
-      await ctx.api.editMessageText(chatId, room.messageId, text, { parse_mode: "HTML", reply_markup: keyboard });
+      await ctx.api.editMessageText(chatId, room.messageId, text, { parse_mode: "HTML", reply_markup: keyboard ?? new InlineKeyboard() });
       return;
     } catch (error) {
       console.warn("Could not edit group game message; sending a new one.", error);
