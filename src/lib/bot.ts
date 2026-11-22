@@ -482,10 +482,11 @@ bot.on("pre_checkout_query", async (ctx) => {
     const buyer = await prisma.user.findUnique({ where: { telegramId: BigInt(query.from.id) }, select: { id: true } });
     const valid = !!order && order.status === "PENDING" && order.stars === query.total_amount
       && query.currency === "XTR" && order.userId === buyer?.id;
-    await ctx.answerPreCheckoutQuery(valid, valid ? undefined : "Заказ недоступен. Создай новый счёт в GameHub.");
+    if (valid) await ctx.answerPreCheckoutQuery(true);
+    else await ctx.answerPreCheckoutQuery(false, { error_message: "Заказ недоступен. Создай новый счёт в GameHub." });
   } catch (error) {
     console.error("Stars pre-checkout error:", error);
-    await ctx.answerPreCheckoutQuery(false, "Не удалось проверить заказ. Попробуй позже.");
+    await ctx.answerPreCheckoutQuery(false, { error_message: "Не удалось проверить заказ. Попробуй позже." });
   }
 });
 
