@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { validateTelegramWebAppData } from "@/lib/telegram";
-import { createServiceClient } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,7 +62,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Загрузка фото пока не настроена на сервере: добавь Supabase Service Role Key." }, { status: 503 });
     }
 
-    const storage = createServiceClient().storage;
+    const storage = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    }).storage;
     const existingBucket = await storage.getBucket(BUCKET);
     if (existingBucket.error) {
       const created = await storage.createBucket(BUCKET, { public: true, fileSizeLimit: "5MB", allowedMimeTypes: Object.keys(MIME_EXTENSIONS) });
