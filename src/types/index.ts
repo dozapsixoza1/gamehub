@@ -33,6 +33,7 @@ export interface ShopItemDTO {
   priceCoins: number;
   priceGems: number;
   imageUrl?: string | null;
+  metadata?: { cosmeticType?: string; cosmeticValue?: string } | null;
 }
 
 export interface PromoCodeResult {
