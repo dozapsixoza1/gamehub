@@ -66,6 +66,12 @@ export async function POST(req: NextRequest) {
         await prisma.userSettings.upsert({ where: { userId: user.id }, create: { userId: user.id, profileBadge: value }, update: { profileBadge: value } });
       } else if (cosmeticType === "background") {
         await prisma.userSettings.upsert({ where: { userId: user.id }, create: { userId: user.id, profileBackground: value }, update: { profileBackground: value } });
+      } else if (cosmeticType === "animation") {
+        await prisma.userSettings.upsert({ where: { userId: user.id }, create: { userId: user.id, avatarAnimation: value }, update: { avatarAnimation: value } });
+      } else if (cosmeticType === "effect") {
+        await prisma.userSettings.upsert({ where: { userId: user.id }, create: { userId: user.id, profileEffect: value }, update: { profileEffect: value } });
+      } else if (cosmeticType === "title") {
+        await prisma.userSettings.upsert({ where: { userId: user.id }, create: { userId: user.id, profileTitle: value }, update: { profileTitle: value } });
       } else {
         return NextResponse.json({ error: "Неизвестный тип косметики" }, { status: 400 });
       }
