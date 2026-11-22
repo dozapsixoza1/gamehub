@@ -14,7 +14,7 @@ export interface UserProfile {
   isAdmin: boolean;
   isVerified: boolean;
   displayName?: string | null;
-  avatarUrl?: string | null;
+  avatarUrl?: string | null;\n  profileFrame?: string | null;\n  nicknameColor?: string | null;\n  profileBadge?: string | null;\n  profileBackground?: string | null;
 }
 
 export interface ShopItemDTO {
