@@ -66,7 +66,7 @@ export default function ShopPage() {
       if (!res.ok) throw new Error(data.message || data.error || "Не удалось экипировать предмет");
       const key = item.metadata?.cosmeticType;
       const value = item.metadata?.cosmeticValue;
-      if (key) setEquipped(current => ({ ...current, [key]: current[key] === value ? null : value }));
+      if (key && value) setEquipped(current => ({ ...current, [key]: current[key] === value ? null : value }));
       await refreshUser();
     } catch (error) { alert(error instanceof Error ? error.message : "Ошибка сети"); }
     finally { setBuying(null); }
