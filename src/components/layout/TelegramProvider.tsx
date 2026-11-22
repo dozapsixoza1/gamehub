@@ -53,7 +53,7 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
               root.dataset.compact = settings.compactMode ? "true" : "false";
               root.dataset.animations = settings.animations === false ? "false" : "true";
               root.dataset.profileBackground = settings.profileBackground || "";
-              setUser(current => current ? { ...current, displayName: settings.displayName, avatarUrl: settings.avatarUrl, profileFrame: settings.profileFrame, nicknameColor: settings.nicknameColor, profileBadge: settings.profileBadge, profileBackground: settings.profileBackground } : current);
+              setUser(current => current ? { ...current, displayName: settings.displayName, avatarUrl: settings.avatarUrl, profileFrame: settings.profileFrame, nicknameColor: settings.nicknameColor, profileBadge: settings.profileBadge, profileBackground: settings.profileBackground, avatarAnimation: settings.avatarAnimation, profileEffect: settings.profileEffect, profileTitle: settings.profileTitle } : current);
             }
           })
           .catch(() => {});
