@@ -89,7 +89,17 @@ export async function GET(req: NextRequest) {
         }),
         incomingRequests: friendships.filter((item) => item.status === "PENDING" && item.addresseeId === me.id).map((item) => ({ id: item.id, user: { id: item.requester.id, username: item.requester.username, name: item.requester.firstName || item.requester.username || "Игрок" } })),
         outgoingRequests: friendships.filter((item) => item.status === "PENDING" && item.requesterId === me.id).map((item) => ({ id: item.id, user: { id: item.addressee.id, username: item.addressee.username, name: item.addressee.firstName || item.addressee.username || "Игрок" } })),
-        challenges: challenges.map((item) => ({ id: item.id, gameId: item.gameId, status: item.status, incoming: item.challengedId === me.id, opponent: item.challengerId === me.id ? item.challenged : item.challenger, createdAt: item.createdAt })),
+        challenges: challenges.map((item) => {
+          const opponent = item.challengerId === me.id ? item.challenged : item.challenger;
+          return {
+            id: item.id,
+            gameId: item.gameId,
+            status: item.status,
+            incoming: item.challengedId === me.id,
+            opponent: { id: opponent.id, username: opponent.username, name: opponent.firstName || opponent.username || "Игрок" },
+            createdAt: item.createdAt,
+          };
+        }),
         clans: memberships.map((item) => ({ id: item.clan.id, name: item.clan.name, slug: item.clan.slug, emblem: item.clan.emblem, description: item.clan.description, role: item.role, members: item.clan._count.members })),
         notifications,
         unreadNotifications: notifications.filter((item) => !item.readAt).length,
