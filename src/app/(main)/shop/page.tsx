@@ -13,6 +13,7 @@ const CATEGORIES = [
   { id: "mafia", label: "Мафия" },
   { id: "global", label: "Общее" },
   { id: "boosts", label: "Бусты" },
+  { id: "cosmetics", label: "Косметика" },
 ];
 
 export default function ShopPage() {
@@ -21,16 +22,19 @@ export default function ShopPage() {
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("all");
   const [buying, setBuying] = useState<string | null>(null);
+  const [ownedItemIds, setOwnedItemIds] = useState<string[]>([]);
 
   useEffect(() => {
-    fetch("/api/shop")
+    if (!initData) return;
+    fetch("/api/shop", { headers: { "x-init-data": initData }, cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
         setItems(data.items || []);
+        setOwnedItemIds(data.ownedItemIds || []);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [initData]);
 
   const filtered =
     activeCategory === "all"
@@ -39,7 +43,7 @@ export default function ShopPage() {
           (i) => i.gameId === activeCategory || i.category === activeCategory
         );
 
-  const handleBuy = async (item: ShopItemDTO, currency: "coins" | "gems") => {
+  const handleEquip = async (item: ShopItemDTO) => {\n    if (!initData || buying) return;\n    setBuying(item.id);\n    try {\n      const res = await fetch("/api/shop", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ initData, itemId: item.id, action: "equip" }) });\n      const data = await res.json();\n      if (!res.ok) throw new Error(data.message || data.error || "Не удалось экипировать предмет");\n      alert("Предмет экипирован");\n    } catch (error) { alert(error instanceof Error ? error.message : "Ошибка сети"); }\n    finally { setBuying(null); }\n  };\n\n  const handleBuy = async (item: ShopItemDTO, currency: "coins" | "gems") => {
     if (!initData || buying) return;
     setBuying(item.id);
 
@@ -161,8 +165,8 @@ export default function ShopPage() {
                     {item.description}
                   </p>
                 )}
-                <div className="flex gap-2 mt-1.5">
-                  {item.priceCoins > 0 && (
+                <div className="flex flex-wrap gap-2 mt-1.5">
+                  {item.category === "cosmetics" && ownedItemIds.includes(item.id) && <button onClick={() => handleEquip(item)} disabled={!!buying} className="rounded-lg bg-emerald-500/15 px-2.5 py-1 text-xs text-emerald-300 disabled:opacity-50">{buying === item.id ? "..." : "Надеть"}</button>}\n                  {item.priceCoins > 0 && (
                     <button
                       onClick={() => handleBuy(item, "coins")}
                       disabled={!!buying}
