@@ -51,8 +51,8 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
               root.dataset.accent = settings.accentColor || "ruby";
               root.dataset.background = settings.backgroundStyle || "aurora";
               root.dataset.compact = settings.compactMode ? "true" : "false";
-              root.dataset.animations = settings.animations === false ? "false" : "true";
-              setUser(current => current ? { ...current, displayName: settings.displayName, avatarUrl: settings.avatarUrl } : current);
+              root.dataset.animations = settings.animations === false ? "false" : "true";\n              root.dataset.profileBackground = settings.profileBackground || "";
+              setUser(current => current ? { ...current, displayName: settings.displayName, avatarUrl: settings.avatarUrl, profileFrame: settings.profileFrame, nicknameColor: settings.nicknameColor, profileBadge: settings.profileBadge, profileBackground: settings.profileBackground } : current);
             }
           })
           .catch(() => {});
