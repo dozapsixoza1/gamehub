@@ -22,10 +22,10 @@ export function BottomNav() {
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 safe-bottom">
-      <div className="mx-auto max-w-lg">
-        <div className="mx-3 mb-3 rounded-2xl glass border border-white/10 shadow-2xl">
-          <div className="flex items-center justify-around py-2">
+    <nav aria-label="Основная навигация" className="fixed inset-x-0 bottom-0 z-50 px-2 pb-[env(safe-area-inset-bottom,0px)]">
+      <div className="mx-auto w-full max-w-lg">
+        <div className="mb-2 rounded-2xl glass border border-white/10 shadow-2xl">
+          <div className="grid w-full grid-cols-5 items-stretch gap-0.5 px-1 py-1.5">
             {tabs.map((tab) => {
               const isActive =
                 tab.href === "/"
@@ -39,7 +39,7 @@ export function BottomNav() {
                   key={tab.href}
                   href={tab.href}
                   className={cn(
-                    "flex flex-col items-center gap-0.5 px-5 py-2 rounded-xl transition-all duration-200",
+                    "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 py-2 transition-all duration-200",
                     isActive
                       ? "text-white"
                       : "text-white/40 hover:text-white/70"
@@ -47,16 +47,16 @@ export function BottomNav() {
                 >
                   <div
                     className={cn(
-                      "p-1.5 rounded-xl transition-all",
+                      "rounded-xl p-1 transition-all",
                       isActive && "bg-white/10"
                     )}
                   >
                     <Icon
-                      size={22}
+                      size={19}
                       strokeWidth={isActive ? 2.2 : 1.8}
                     />
                   </div>
-                  <span className="text-[11px] font-medium tracking-wide">
+                  <span className="max-w-full whitespace-nowrap text-[9px] font-semibold leading-tight tracking-tight sm:text-[10px]">
                     {tab.label}
                   </span>
                 </Link>

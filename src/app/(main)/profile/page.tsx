@@ -16,8 +16,6 @@ type ProgressData = {
     dailyStreak: number; referralCode: string; referrals: number;
   };
   achievements: { id: string; unlockedAt: string; achievement: { title: string; description: string; icon: string; xpReward: number; coinsReward: number } }[];
-  history: { id: string; gameId: string; result: string; winner: string | null; summary: string | null; playersCount: number; xpEarned: number; coinsEarned: number; playedAt: string }[];
-  leaderboard: { id: string; username: string | null; firstName: string | null; xp: number; level: number; gamesPlayed: number; gamesWon: number }[];
   xpTransactions: { id: string; amount: number; balanceAfter: number; source: string; reason: string; createdAt: string }[];
 };
 
@@ -27,6 +25,8 @@ export default function ProfilePage() {
   const [promoStatus, setPromoStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [promoMessage, setPromoMessage] = useState("");
   const [data, setData] = useState<ProgressData | null>(null);
+  const [progressLoading, setProgressLoading] = useState(true);
+  const [progressError, setProgressError] = useState("");
   const [dailyBusy, setDailyBusy] = useState(false);
   const [dailyMessage, setDailyMessage] = useState("");
   const [refCode, setRefCode] = useState("");
@@ -35,8 +35,18 @@ export default function ProfilePage() {
 
   const loadProgress = async () => {
     if (!initData) return;
-    const res = await fetch("/api/progression", { headers: { "x-init-data": initData }, cache: "no-store" });
-    if (res.ok) setData(await res.json());
+    setProgressLoading(true);
+    try {
+      const res = await fetch("/api/progression", { headers: { "x-init-data": initData }, cache: "no-store" });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Не удалось загрузить профиль");
+      setData(result);
+      setProgressError("");
+    } catch (error) {
+      setProgressError(error instanceof Error ? error.message : "Ошибка загрузки профиля");
+    } finally {
+      setProgressLoading(false);
+    }
   };
 
   useEffect(() => { loadProgress().catch(console.error); }, [initData]);
@@ -85,11 +95,11 @@ export default function ProfilePage() {
   return (
     <div className="px-4 pt-6 pb-8 max-w-lg mx-auto space-y-4">
       <div className="flex items-center gap-4">
-        <PlayerAvatar name={user.displayName || user.firstName || "Игрок"} imageUrl={user.avatarUrl || user.photoUrl} online sizeClassName="h-16 w-16 text-2xl font-bold"/>
+        <div className={user.profileFrame ? "rounded-full p-1 ring-2 ring-violet-400 shadow-lg shadow-violet-500/20" : ""}><PlayerAvatar name={user.displayName || user.firstName || "Игрок"} imageUrl={user.avatarUrl || user.photoUrl} online sizeClassName="h-16 w-16 text-2xl font-bold"/></div>
         <div className="min-w-0">
-          <h1 className="text-xl font-bold text-white truncate">{user.displayName || `${user.firstName || ""} ${user.lastName || ""}`.trim()}</h1>
+          <h1 className="text-xl font-bold text-white truncate" style={user.nicknameColor === "amethyst" ? { color: "#c4b5fd" } : undefined}>{user.displayName || `${user.firstName || ""} ${user.lastName || ""}`.trim()}</h1>
           {user.username && <p className="text-white/40 text-sm">@{user.username}</p>}
-          <div className="mt-2"><PlayerBadges isAdmin={user.isAdmin} isVerified={user.isVerified} /></div>
+          <div className="mt-2 flex flex-wrap items-center gap-2"><PlayerBadges isAdmin={user.isAdmin} isVerified={user.isVerified} />{user.profileBadge === "winner" && <span className="rounded-full bg-amber-400/15 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-amber-300">🏆 Победитель</span>}</div>
         </div>
       </div>
 
@@ -99,7 +109,7 @@ export default function ProfilePage() {
           <div className="text-right"><p className="text-xs text-white/45">Опыт</p><p className="font-bold text-white">{formatNumber(p?.xp ?? 0)} XP</p></div>
         </div>
         <div className="h-2 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-gradient-to-r from-red-500 to-orange-400 rounded-full" style={{ width: `${progress}%` }} /></div>
-        <p className="text-[11px] text-white/35 mt-2">{p ? `${p.xp - p.currentLevelXp} / ${p.nextLevelXp - p.currentLevelXp} XP до следующего уровня` : "Загрузка прогресса..."}</p>
+        <p className="text-[11px] text-white/35 mt-2">{p ? `${p.xp - p.currentLevelXp} / ${p.nextLevelXp - p.currentLevelXp} XP до следующего уровня` : progressLoading ? "Загружаем статистику..." : "Прогресс временно недоступен"}</p>
       </section>
 
       <div className="grid grid-cols-2 gap-3">
@@ -127,7 +137,7 @@ export default function ProfilePage() {
 
       <section className="glass rounded-2xl p-4">
         <div className="flex items-center justify-between mb-3"><div className="flex items-center gap-2"><Star size={18} className="text-yellow-400" /><h2 className="font-semibold text-white">Достижения</h2></div><span className="text-xs text-white/40">{data?.achievements.length ?? 0}</span></div>
-        {data?.achievements.length ? <div className="space-y-2">{data.achievements.map(a => <div key={a.id} className="flex items-center gap-3 bg-white/5 rounded-xl p-3"><span className="text-2xl">{a.achievement.icon}</span><div className="min-w-0 flex-1"><p className="text-sm font-medium text-white">{a.achievement.title}</p><p className="text-xs text-white/40">{a.achievement.description}</p></div></div>)}</div> : <p className="text-xs text-white/40">Пока нет открытых достижений. Играй и выполняй условия!</p>}
+        {progressLoading ? <p className="text-xs text-white/40">Загружаем достижения...</p> : data?.achievements.length ? <div className="space-y-2">{data.achievements.map(a => <div key={a.id} className="flex items-center gap-3 bg-white/5 rounded-xl p-3"><span className="text-2xl">{a.achievement.icon}</span><div className="min-w-0 flex-1"><p className="text-sm font-medium text-white">{a.achievement.title}</p><p className="text-xs text-white/40">{a.achievement.description}</p></div></div>)}</div> : <p className="text-xs text-white/40">Пока нет открытых достижений. Играй и выполняй условия!</p>}
       </section>
 
       <section className="glass rounded-2xl p-4">
@@ -135,6 +145,12 @@ export default function ProfilePage() {
         {data?.xpTransactions?.length ? <div className="space-y-2">{data.xpTransactions.map(tx=><div key={tx.id} className="flex items-center justify-between gap-3 rounded-xl bg-white/5 p-3"><div className="min-w-0"><p className="text-sm text-white truncate">{tx.reason}</p><p className="text-[11px] text-white/40">{tx.source} · {new Date(tx.createdAt).toLocaleString("ru-RU")}</p></div><div className="text-right shrink-0"><p className={`text-sm font-bold ${tx.amount>=0?"text-emerald-400":"text-red-400"}`}>{tx.amount>0?"+":""}{tx.amount} XP</p><p className="text-[10px] text-white/35">Баланс: {tx.balanceAfter}</p></div></div>)}</div> : <p className="text-xs text-white/40">История начислений появится после первой операции XP через администрацию.</p>}
       </section>
 
+      <div className="grid grid-cols-3 gap-2">
+        <Link href="/quests" className="glass rounded-xl p-3 text-center text-xs font-semibold text-white"><Gift size={18} className="mx-auto mb-1 text-amber-300"/>Задания</Link>
+        <Link href="/community" className="glass rounded-xl p-3 text-center text-xs font-semibold text-white"><Users size={18} className="mx-auto mb-1 text-sky-300"/>Сообщество</Link>
+        <Link href="/seasons" className="glass rounded-xl p-3 text-center text-xs font-semibold text-white"><Crown size={18} className="mx-auto mb-1 text-yellow-300"/>Сезоны</Link>
+      </div>
+      {progressError && <p className="rounded-xl bg-red-500/10 p-3 text-xs text-red-300">{progressError}</p>}
       <VerificationManager />
       <Link href="/admin" className="glass rounded-xl p-3 flex items-center gap-2 text-sm text-white"><ShieldCheck size={17} className="text-red-400" />Панель администрации</Link>
 

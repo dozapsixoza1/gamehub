@@ -7,7 +7,7 @@ export default function MainLayout({
 }) {
   return (
     <div className="min-h-dvh flex flex-col">
-      <main className="flex-1 pb-28">{children}</main>
+      <main className="min-w-0 flex-1 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))]">{children}</main>
       <BottomNav />
     </div>
   );

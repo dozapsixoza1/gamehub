@@ -15,6 +15,10 @@ export interface UserProfile {
   isVerified: boolean;
   displayName?: string | null;
   avatarUrl?: string | null;
+  profileFrame?: string | null;
+  nicknameColor?: string | null;
+  profileBadge?: string | null;
+  profileBackground?: string | null;
 }
 
 export interface ShopItemDTO {
