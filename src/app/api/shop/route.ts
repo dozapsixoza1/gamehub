@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
       } else {
         return NextResponse.json({ error: "Неизвестный тип косметики" }, { status: 400 });
       }
-      return NextResponse.json({ success: true, message: "Предмет экипирован" });
+      return NextResponse.json({ success: true, message: action === "unequip" ? "Предмет снят" : "Предмет экипирован" });
     }
 
     if (action !== "buy" || (currency !== "coins" && currency !== "gems")) {
