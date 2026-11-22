@@ -16,8 +16,6 @@ type ProgressData = {
     dailyStreak: number; referralCode: string; referrals: number;
   };
   achievements: { id: string; unlockedAt: string; achievement: { title: string; description: string; icon: string; xpReward: number; coinsReward: number } }[];
-  history: { id: string; gameId: string; result: string; winner: string | null; summary: string | null; playersCount: number; xpEarned: number; coinsEarned: number; playedAt: string }[];
-  leaderboard: { id: string; username: string | null; firstName: string | null; xp: number; level: number; gamesPlayed: number; gamesWon: number }[];
   xpTransactions: { id: string; amount: number; balanceAfter: number; source: string; reason: string; createdAt: string }[];
 };
 
@@ -27,6 +25,8 @@ export default function ProfilePage() {
   const [promoStatus, setPromoStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [promoMessage, setPromoMessage] = useState("");
   const [data, setData] = useState<ProgressData | null>(null);
+  const [progressLoading, setProgressLoading] = useState(true);
+  const [progressError, setProgressError] = useState("");
   const [dailyBusy, setDailyBusy] = useState(false);
   const [dailyMessage, setDailyMessage] = useState("");
   const [refCode, setRefCode] = useState("");
@@ -35,8 +35,18 @@ export default function ProfilePage() {
 
   const loadProgress = async () => {
     if (!initData) return;
-    const res = await fetch("/api/progression", { headers: { "x-init-data": initData }, cache: "no-store" });
-    if (res.ok) setData(await res.json());
+    setProgressLoading(true);
+    try {
+      const res = await fetch("/api/progression", { headers: { "x-init-data": initData }, cache: "no-store" });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Не удалось загрузить профиль");
+      setData(result);
+      setProgressError("");
+    } catch (error) {
+      setProgressError(error instanceof Error ? error.message : "Ошибка загрузки профиля");
+    } finally {
+      setProgressLoading(false);
+    }
   };
 
   useEffect(() => { loadProgress().catch(console.error); }, [initData]);
@@ -135,7 +145,7 @@ export default function ProfilePage() {
         {data?.xpTransactions?.length ? <div className="space-y-2">{data.xpTransactions.map(tx=><div key={tx.id} className="flex items-center justify-between gap-3 rounded-xl bg-white/5 p-3"><div className="min-w-0"><p className="text-sm text-white truncate">{tx.reason}</p><p className="text-[11px] text-white/40">{tx.source} · {new Date(tx.createdAt).toLocaleString("ru-RU")}</p></div><div className="text-right shrink-0"><p className={`text-sm font-bold ${tx.amount>=0?"text-emerald-400":"text-red-400"}`}>{tx.amount>0?"+":""}{tx.amount} XP</p><p className="text-[10px] text-white/35">Баланс: {tx.balanceAfter}</p></div></div>)}</div> : <p className="text-xs text-white/40">История начислений появится после первой операции XP через администрацию.</p>}
       </section>
 
-      <VerificationManager />
+      <div className="grid grid-cols-3 gap-2">\n        <Link href="/quests" className="glass rounded-xl p-3 text-center text-xs font-semibold text-white"><Gift size={18} className="mx-auto mb-1 text-amber-300"/>Задания</Link>\n        <Link href="/community" className="glass rounded-xl p-3 text-center text-xs font-semibold text-white"><Users size={18} className="mx-auto mb-1 text-sky-300"/>Сообщество</Link>\n        <Link href="/seasons" className="glass rounded-xl p-3 text-center text-xs font-semibold text-white"><Crown size={18} className="mx-auto mb-1 text-yellow-300"/>Сезоны</Link>\n      </div>\n      {progressError && <p className="rounded-xl bg-red-500/10 p-3 text-xs text-red-300">{progressError}</p>}\n      <VerificationManager />
       <Link href="/admin" className="glass rounded-xl p-3 flex items-center gap-2 text-sm text-white"><ShieldCheck size={17} className="text-red-400" />Панель администрации</Link>
 
       <Link href="/settings" className="glass rounded-xl p-3 flex items-center gap-2 text-sm text-white"><Settings size={17}/>Настройки профиля</Link>
