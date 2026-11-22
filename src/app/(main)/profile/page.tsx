@@ -99,10 +99,12 @@ export default function ProfilePage() {
         <div className="min-w-0">
           <h1 className="text-xl font-bold text-white truncate" style={user.nicknameColor === "amethyst" ? { color: "#c4b5fd" } : undefined}>{user.displayName || `${user.firstName || ""} ${user.lastName || ""}`.trim()}</h1>
           {user.username && <p className="text-white/40 text-sm">@{user.username}</p>}{user.profileTitle && <p className="mt-1 text-[10px] font-black uppercase tracking-[.18em] text-amber-300">{user.profileTitle}</p>}
+          {user.profileBio && <p className="mt-2 max-w-xs text-xs leading-relaxed text-white/55">{user.profileBio}</p>}
           <div className="mt-2 flex flex-wrap items-center gap-2"><PlayerBadges isAdmin={user.isAdmin} isVerified={user.isVerified} />{user.profileBadge === "winner" && <span className="rounded-full bg-amber-400/15 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-amber-300">🏆 Победитель</span>}</div>
         </div>
       </div>
 
+      {user.profileShowcase?.length ? <section className="glass rounded-2xl p-4"><p className="mb-3 text-[10px] font-bold uppercase tracking-[.18em] text-white/40">Избранные достижения</p><div className="flex flex-wrap gap-2">{user.profileShowcase.map(id=>{const achievement=data?.achievements.find(a=>a.achievement.id===id)?.achievement;return achievement?<span key={id} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/80">{achievement.icon} {achievement.title}</span>:null;})}</div></section>:null}
       <Link href="/shop" className="glass flex items-center justify-between rounded-2xl p-4"><div><p className="text-sm font-bold text-white">Мастерская профиля</p><p className="mt-1 text-xs text-white/45">Рамки, анимации, эффекты, титулы и коллекция</p></div><span className="rounded-xl bg-violet-400/15 px-3 py-2 text-xs font-bold text-violet-200">Открыть</span></Link>
 
       <section className="glass rounded-2xl p-4">
