@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
       let activeSeason = season ? await prisma.season.findFirst({ where: { isActive: true, startsAt: { lte: new Date() }, endsAt: { gte: new Date() } } }) : null;
       if (season && !activeSeason) {
         activeSeason = await prisma.season.findFirst({ orderBy: { endsAt: "desc" } });
+        if (!activeSeason) return NextResponse.json({ users: [], season: null });
       }
       if (gameId === "all" && !season) {
         const users = await prisma.user.findMany({
