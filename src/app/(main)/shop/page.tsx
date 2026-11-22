@@ -23,6 +23,7 @@ export default function ShopPage() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [buying, setBuying] = useState<string | null>(null);
   const [ownedItemIds, setOwnedItemIds] = useState<string[]>([]);
+  const [equipped, setEquipped] = useState<Record<string, string | null>>({});
 
   useEffect(() => {
     if (!initData) return;
@@ -31,6 +32,7 @@ export default function ShopPage() {
       .then((data) => {
         setItems(data.items || []);
         setOwnedItemIds(data.ownedItemIds || []);
+        setEquipped(data.equipped || {});
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -47,14 +49,18 @@ export default function ShopPage() {
     if (!initData || buying) return;
     setBuying(item.id);
     try {
-      const res = await fetch("/api/shop", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ initData, itemId: item.id, action: "equip" }) });
+      const res = await fetch("/api/shop", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ initData, itemId: item.id, action: isEquipped(item) ? "unequip" : "equip" }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || data.error || "Не удалось экипировать предмет");
+      const key = item.metadata?.cosmeticType;
+      const value = item.metadata?.cosmeticValue;
+      if (key) setEquipped(current => ({ ...current, [key]: current[key] === value ? null : value }));
       await refreshUser();
-      alert("Предмет экипирован");
     } catch (error) { alert(error instanceof Error ? error.message : "Ошибка сети"); }
     finally { setBuying(null); }
   };
+
+  const isEquipped = (item: ShopItemDTO) => !!item.metadata?.cosmeticType && equipped[item.metadata.cosmeticType] === item.metadata.cosmeticValue;
 
   const handleBuy = async (item: ShopItemDTO, currency: "coins" | "gems") => {
     if (!initData || buying) return;
@@ -92,7 +98,7 @@ export default function ShopPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white">Магазин</h1>
         <p className="text-white/50 text-sm mt-1">
-          Улучшения и предметы для игр
+          Косметика профиля, игровые предметы и коллекции
         </p>
       </div>
 
@@ -180,7 +186,7 @@ export default function ShopPage() {
                   </p>
                 )}
                 <div className="flex flex-wrap gap-2 mt-1.5">
-                  {item.category === "cosmetics" && ownedItemIds.includes(item.id) && <button onClick={() => handleEquip(item)} disabled={!!buying} className="rounded-lg bg-emerald-500/15 px-2.5 py-1 text-xs text-emerald-300 disabled:opacity-50">{buying === item.id ? "..." : "Надеть"}</button>}
+                  {item.category === "cosmetics" && ownedItemIds.includes(item.id) && <button onClick={() => handleEquip(item)} disabled={!!buying} className={`rounded-lg px-2.5 py-1 text-xs disabled:opacity-50 ${isEquipped(item) ? "bg-emerald-500/15 text-emerald-300" : "bg-white/10 text-white"}`}>{buying === item.id ? "..." : isEquipped(item) ? "Снять" : "Надеть"}</button>}{item.category === "cosmetics" && isEquipped(item) && <span className="self-center text-[10px] text-emerald-300">Сейчас в профиле</span>}
                   {item.priceCoins > 0 && (
                     <button
                       onClick={() => handleBuy(item, "coins")}
