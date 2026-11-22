@@ -43,7 +43,20 @@ export default function ShopPage() {
           (i) => i.gameId === activeCategory || i.category === activeCategory
         );
 
-  const handleEquip = async (item: ShopItemDTO) => {\n    if (!initData || buying) return;\n    setBuying(item.id);\n    try {\n      const res = await fetch("/api/shop", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ initData, itemId: item.id, action: "equip" }) });\n      const data = await res.json();\n      if (!res.ok) throw new Error(data.message || data.error || "Не удалось экипировать предмет");\n      await refreshUser();\n      alert("Предмет экипирован");\n    } catch (error) { alert(error instanceof Error ? error.message : "Ошибка сети"); }\n    finally { setBuying(null); }\n  };\n\n  const handleBuy = async (item: ShopItemDTO, currency: "coins" | "gems") => {
+  const handleEquip = async (item: ShopItemDTO) => {
+    if (!initData || buying) return;
+    setBuying(item.id);
+    try {
+      const res = await fetch("/api/shop", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ initData, itemId: item.id, action: "equip" }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || data.error || "Не удалось экипировать предмет");
+      await refreshUser();
+      alert("Предмет экипирован");
+    } catch (error) { alert(error instanceof Error ? error.message : "Ошибка сети"); }
+    finally { setBuying(null); }
+  };
+
+  const handleBuy = async (item: ShopItemDTO, currency: "coins" | "gems") => {
     if (!initData || buying) return;
     setBuying(item.id);
 
@@ -167,7 +180,8 @@ export default function ShopPage() {
                   </p>
                 )}
                 <div className="flex flex-wrap gap-2 mt-1.5">
-                  {item.category === "cosmetics" && ownedItemIds.includes(item.id) && <button onClick={() => handleEquip(item)} disabled={!!buying} className="rounded-lg bg-emerald-500/15 px-2.5 py-1 text-xs text-emerald-300 disabled:opacity-50">{buying === item.id ? "..." : "Надеть"}</button>}\n                  {item.priceCoins > 0 && (
+                  {item.category === "cosmetics" && ownedItemIds.includes(item.id) && <button onClick={() => handleEquip(item)} disabled={!!buying} className="rounded-lg bg-emerald-500/15 px-2.5 py-1 text-xs text-emerald-300 disabled:opacity-50">{buying === item.id ? "..." : "Надеть"}</button>}
+                  {item.priceCoins > 0 && (
                     <button
                       onClick={() => handleBuy(item, "coins")}
                       disabled={!!buying}
