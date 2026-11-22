@@ -68,7 +68,7 @@ export default function SettingsPage() {
       const form=new FormData();form.append("initData",initData);form.append("file",file);
       const response=await fetch("/api/profile/avatar",{method:"POST",body:form});
       const result=await response.json();if(!response.ok)throw new Error(result.error||"Не удалось загрузить аватар");
-      setS(old=>({...old,avatarUrl:result.avatarUrl}));setMessage("Аватар обновлён");await refreshUser();
+      setS(old=>({...old,avatarUrl:result.avatarUrl}));setAvatarPreview(null);setMessage("Аватар обновлён");await refreshUser();
     }catch(error){setMessage(error instanceof Error?error.message:"Ошибка загрузки аватара");setAvatarPreview(null);}
     finally{setAvatarBusy(false);if(fileInput.current)fileInput.current.value="";}
   };
