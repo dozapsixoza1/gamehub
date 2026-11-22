@@ -15,7 +15,7 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     if (!initData) return;
-    fetch("/api/progression", { headers: { "x-init-data": initData }, cache: "no-store" })
+    fetch("/api/progression?view=history", { headers: { "x-init-data": initData }, cache: "no-store" })
       .then(r => r.json()).then(d => setItems(d.history || []))
       .catch(console.error).finally(() => setLoading(false));
   }, [initData]);
