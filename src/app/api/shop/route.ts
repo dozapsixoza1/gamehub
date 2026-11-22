@@ -2,120 +2,102 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { validateTelegramWebAppData } from "@/lib/telegram";
 
-// Получить товары
+// Каталог открыт для просмотра, инвентарь показываем только после проверки Telegram initData.
 export async function GET(req: NextRequest) {
   try {
     const gameId = req.nextUrl.searchParams.get("gameId") || undefined;
     const category = req.nextUrl.searchParams.get("category") || undefined;
-
     const items = await prisma.shopItem.findMany({
-      where: {
-        isActive: true,
-        ...(gameId ? { gameId } : {}),
-        ...(category ? { category } : {}),
-      },
+      where: { isActive: true, ...(gameId ? { gameId } : {}), ...(category ? { category } : {}) },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     });
-
-    return NextResponse.json({ items });
+    let ownedItemIds: string[] = [];
+    const initData = req.headers.get("x-init-data") || "";
+    const token = process.env.BOT_TOKEN;
+    if (initData && token) {
+      const auth = validateTelegramWebAppData(initData, token);
+      if (auth.valid && auth.user) {
+        const user = await prisma.user.findUnique({ where: { telegramId: BigInt(auth.user.id) }, select: { id: true } });
+        if (user) {
+          const owned = await prisma.userItem.findMany({ where: { userId: user.id }, select: { itemId: true } });
+          ownedItemIds = owned.map((entry) => entry.itemId);
+        }
+      }
+    }
+    return NextResponse.json({ items, ownedItemIds }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("Shop GET error:", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
 
-// Купить товар
 export async function POST(req: NextRequest) {
   try {
-    const { initData, itemId, currency } = await req.json();
+    const body = await req.json();
+    const initData = String(body.initData || "");
+    const itemId = String(body.itemId || "");
+    const action = String(body.action || "buy");
+    const currency = body.currency;
+    if (!initData || !itemId) return NextResponse.json({ error: "Missing data" }, { status: 400 });
 
-    if (!initData || !itemId || !currency) {
-      return NextResponse.json({ error: "Missing data" }, { status: 400 });
+    const token = process.env.BOT_TOKEN;
+    if (!token) return NextResponse.json({ error: "Server misconfigured" }, { status: 500 });
+    const auth = validateTelegramWebAppData(initData, token);
+    if (!auth.valid || !auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const user = await prisma.user.findUnique({ where: { telegramId: BigInt(auth.user.id) } });
+    if (!user || user.isBanned) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    const item = await prisma.shopItem.findUnique({ where: { id: itemId } });
+    if (!item || !item.isActive) return NextResponse.json({ error: "Item not found" }, { status: 404 });
+
+    if (action === "equip") {
+      if (item.category !== "cosmetics") return NextResponse.json({ error: "Этот предмет нельзя экипировать" }, { status: 400 });
+      const owned = await prisma.userItem.findUnique({ where: { userId_itemId: { userId: user.id, itemId } } });
+      if (!owned) return NextResponse.json({ error: "Сначала приобрети предмет" }, { status: 403 });
+      const metadata = item.metadata && typeof item.metadata === "object" ? item.metadata as { cosmeticType?: string; cosmeticValue?: string } : {};
+      const value = String(metadata.cosmeticValue || "");
+      if (!value) return NextResponse.json({ error: "У предмета не настроен эффект" }, { status: 400 });
+      const cosmeticType = metadata.cosmeticType;
+      if (cosmeticType === "frame") {
+        await prisma.userSettings.upsert({ where: { userId: user.id }, create: { userId: user.id, profileFrame: value }, update: { profileFrame: value } });
+      } else if (cosmeticType === "nicknameColor") {
+        await prisma.userSettings.upsert({ where: { userId: user.id }, create: { userId: user.id, nicknameColor: value }, update: { nicknameColor: value } });
+      } else if (cosmeticType === "badge") {
+        await prisma.userSettings.upsert({ where: { userId: user.id }, create: { userId: user.id, profileBadge: value }, update: { profileBadge: value } });
+      } else if (cosmeticType === "background") {
+        await prisma.userSettings.upsert({ where: { userId: user.id }, create: { userId: user.id, profileBackground: value }, update: { profileBackground: value } });
+      } else {
+        return NextResponse.json({ error: "Неизвестный тип косметики" }, { status: 400 });
+      }
+      return NextResponse.json({ success: true, message: "Предмет экипирован" });
     }
 
-    if (currency !== "coins" && currency !== "gems") {
-      return NextResponse.json({ error: "Invalid currency" }, { status: 400 });
+    if (action !== "buy" || (currency !== "coins" && currency !== "gems")) {
+      return NextResponse.json({ error: "Invalid purchase data" }, { status: 400 });
     }
-
-    const botToken = process.env.BOT_TOKEN!;
-    const { valid, user: tgUser } = validateTelegramWebAppData(initData, botToken);
-
-    if (!valid || !tgUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { telegramId: BigInt(tgUser.id) },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    const item = await prisma.shopItem.findUnique({
-      where: { id: itemId },
-    });
-
-    if (!item || !item.isActive) {
-      return NextResponse.json({ error: "Item not found" }, { status: 404 });
-    }
-
     const price = currency === "coins" ? item.priceCoins : item.priceGems;
+    if (price <= 0) return NextResponse.json({ error: "Item not available for this currency" }, { status: 400 });
 
-    if (price <= 0) {
-      return NextResponse.json({ error: "Item not available for this currency" }, { status: 400 });
-    }
-
-    const balance = currency === "coins" ? user.coins : user.gems;
-    if (balance < price) {
-      return NextResponse.json({
-        success: false,
-        message: "Недостаточно средств",
+    await prisma.$transaction(async (tx) => {
+      // Условное списание в транзакции не позволяет потратить один баланс дважды при параллельных запросах.
+      const debit = currency === "coins"
+        ? await tx.user.updateMany({ where: { id: user.id, coins: { gte: price } }, data: { coins: { decrement: price } } })
+        : await tx.user.updateMany({ where: { id: user.id, gems: { gte: price } }, data: { gems: { decrement: price } } });
+      if (!debit.count) throw new Error("INSUFFICIENT_BALANCE");
+      await tx.purchase.create({ data: { userId: user.id, itemId: item.id, pricePaid: price, currency } });
+      await tx.userItem.upsert({
+        where: { userId_itemId: { userId: user.id, itemId: item.id } },
+        create: { userId: user.id, itemId: item.id, quantity: 1 },
+        update: { quantity: { increment: 1 } },
       });
-    }
-
-    await prisma.$transaction([
-      prisma.user.update({
-        where: { id: user.id },
-        data: {
-          [currency]: { decrement: price },
-        },
-      }),
-      prisma.purchase.create({
-        data: {
-          userId: user.id,
-          itemId: item.id,
-          pricePaid: price,
-          currency,
-        },
-      }),
-      prisma.userItem.upsert({
-        where: {
-          userId_itemId: { userId: user.id, itemId: item.id },
-        },
-        create: {
-          userId: user.id,
-          itemId: item.id,
-          quantity: 1,
-        },
-        update: {
-          quantity: { increment: 1 },
-        },
-      }),
-    ]);
-
-    const updatedUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { coins: true, gems: true },
     });
 
-    return NextResponse.json({
-      success: true,
-      message: "Покупка успешна!",
-      coins: updatedUser?.coins,
-      gems: updatedUser?.gems,
-    });
+    const updatedUser = await prisma.user.findUnique({ where: { id: user.id }, select: { coins: true, gems: true } });
+    return NextResponse.json({ success: true, message: "Покупка успешна!", coins: updatedUser?.coins, gems: updatedUser?.gems });
   } catch (error) {
+    if (error instanceof Error && error.message === "INSUFFICIENT_BALANCE") {
+      return NextResponse.json({ success: false, message: "Недостаточно средств" }, { status: 409 });
+    }
     console.error("Shop POST error:", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
