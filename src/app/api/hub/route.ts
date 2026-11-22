@@ -91,6 +91,13 @@ export async function POST(req: NextRequest) {
       const allowedLanguages = ["ru", "en"];
       const allowedAccents = ["ruby", "violet", "cyan", "gold", "emerald"];
       const allowedBackgrounds = ["aurora", "plain", "mesh"];
+      const profileBio = typeof body.profileBio === "string" ? body.profileBio.trim().slice(0, 180) || null : undefined;
+      let profileShowcase: string[] | undefined;
+      if (Array.isArray(body.profileShowcase)) {
+        const requested = [...new Set(body.profileShowcase.filter((id: unknown): id is string => typeof id === "string").slice(0, 3))];
+        const unlocked = await prisma.userAchievement.findMany({ where: { userId: me.id, achievementId: { in: requested } }, select: { achievementId: true } });
+        profileShowcase = unlocked.map(entry => entry.achievementId);
+      }
       const settings = await prisma.userSettings.upsert({
         where: { userId: me.id },
         create: {
@@ -105,6 +112,8 @@ export async function POST(req: NextRequest) {
           compactMode: body.compactMode === true,
           animations: body.animations !== false,
           backgroundStyle: allowedBackgrounds.includes(body.backgroundStyle) ? body.backgroundStyle : "aurora",
+          ...(profileBio !== undefined ? { profileBio } : {}),
+          ...(profileShowcase !== undefined ? { profileShowcase } : {}),
         },
         update: {
           ...(typeof body.displayName === "string" ? { displayName: body.displayName.trim().slice(0,32) || null } : {}),
@@ -117,6 +126,8 @@ export async function POST(req: NextRequest) {
           ...(typeof body.compactMode === "boolean" ? { compactMode: body.compactMode } : {}),
           ...(typeof body.animations === "boolean" ? { animations: body.animations } : {}),
           ...(allowedBackgrounds.includes(body.backgroundStyle) ? { backgroundStyle: body.backgroundStyle } : {}),
+          ...(profileBio !== undefined ? { profileBio } : {}),
+          ...(profileShowcase !== undefined ? { profileShowcase } : {}),
         },
       });
       return NextResponse.json({ success: true, settings });
