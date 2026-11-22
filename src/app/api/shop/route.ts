@@ -84,6 +84,10 @@ export async function POST(req: NextRequest) {
     if (action !== "buy" || (currency !== "coins" && currency !== "gems")) {
       return NextResponse.json({ error: "Invalid purchase data" }, { status: 400 });
     }
+    if (item.category === "cosmetics") {
+      const existingCosmetic = await prisma.userItem.findUnique({ where: { userId_itemId: { userId: user.id, itemId: item.id } } });
+      if (existingCosmetic) return NextResponse.json({ error: "Этот предмет уже есть в коллекции" }, { status: 409 });
+    }
     const price = currency === "coins" ? item.priceCoins : item.priceGems;
     if (price <= 0) return NextResponse.json({ error: "Item not available for this currency" }, { status: 400 });
 
