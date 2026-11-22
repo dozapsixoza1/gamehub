@@ -12,6 +12,7 @@ export async function GET(req: NextRequest) {
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     });
     let ownedItemIds: string[] = [];
+    let equipped: Record<string, string | null> = {};
     const initData = req.headers.get("x-init-data") || "";
     const token = process.env.BOT_TOKEN;
     if (initData && token) {
@@ -21,10 +22,12 @@ export async function GET(req: NextRequest) {
         if (user) {
           const owned = await prisma.userItem.findMany({ where: { userId: user.id }, select: { itemId: true } });
           ownedItemIds = owned.map((entry) => entry.itemId);
+          const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
+          if (settings) equipped = { frame: settings.profileFrame, nicknameColor: settings.nicknameColor, badge: settings.profileBadge, background: settings.profileBackground, animation: settings.avatarAnimation, effect: settings.profileEffect, title: settings.profileTitle };
         }
       }
     }
-    return NextResponse.json({ items, ownedItemIds }, { headers: { "Cache-Control": "private, no-store" } });
+    return NextResponse.json({ items, ownedItemIds, equipped }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("Shop GET error:", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
@@ -50,13 +53,13 @@ export async function POST(req: NextRequest) {
     const item = await prisma.shopItem.findUnique({ where: { id: itemId } });
     if (!item || !item.isActive) return NextResponse.json({ error: "Item not found" }, { status: 404 });
 
-    if (action === "equip") {
+    if (action === "equip" || action === "unequip") {
       if (item.category !== "cosmetics") return NextResponse.json({ error: "Этот предмет нельзя экипировать" }, { status: 400 });
       const owned = await prisma.userItem.findUnique({ where: { userId_itemId: { userId: user.id, itemId } } });
       if (!owned) return NextResponse.json({ error: "Сначала приобрети предмет" }, { status: 403 });
       const metadata = item.metadata && typeof item.metadata === "object" ? item.metadata as { cosmeticType?: string; cosmeticValue?: string } : {};
-      const value = String(metadata.cosmeticValue || "");
-      if (!value) return NextResponse.json({ error: "У предмета не настроен эффект" }, { status: 400 });
+      const value = action === "unequip" ? null : String(metadata.cosmeticValue || "");
+      if (action === "equip" && !value) return NextResponse.json({ error: "У предмета не настроен эффект" }, { status: 400 });
       const cosmeticType = metadata.cosmeticType;
       if (cosmeticType === "frame") {
         await prisma.userSettings.upsert({ where: { userId: user.id }, create: { userId: user.id, profileFrame: value }, update: { profileFrame: value } });
