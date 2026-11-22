@@ -4,7 +4,8 @@ import { useTelegram } from "@/components/layout/TelegramProvider";
 import { GameCard } from "@/components/games/GameCard";
 import { GAMES } from "@/lib/games";
 import { formatNumber } from "@/lib/utils";
-import { Coins, Gem } from "lucide-react";
+import Link from "next/link";
+import { Coins, Gem, Crown, ArrowRight } from "lucide-react";
 
 export default function HomePage() {
   const { user, isLoading } = useTelegram();
@@ -56,6 +57,14 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+      <Link href="/battle-pass" className="mb-5 flex items-center justify-between overflow-hidden rounded-2xl border border-amber-300/20 bg-gradient-to-r from-amber-500/15 to-orange-500/5 p-4 transition hover:border-amber-300/40">
+        <div className="flex items-center gap-3">
+          <div className="rounded-xl bg-amber-300/15 p-2.5 text-amber-200"><Crown size={21}/></div>
+          <div><p className="text-sm font-black text-white">Боевой пропуск</p><p className="mt-0.5 text-[11px] text-white/45">50 уровней · награды · сезонные задания</p></div>
+        </div>
+        <ArrowRight size={18} className="text-amber-200"/>
+      </Link>
 
       {/* Games grid */}
       <div className="space-y-3">
