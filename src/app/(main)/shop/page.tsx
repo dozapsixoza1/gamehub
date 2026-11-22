@@ -24,6 +24,8 @@ export default function ShopPage() {
   const [buying, setBuying] = useState<string | null>(null);
   const [ownedItemIds, setOwnedItemIds] = useState<string[]>([]);
   const [equipped, setEquipped] = useState<Record<string, string | null>>({});
+  const [starBuying, setStarBuying] = useState<number | null>(null);
+  const [starMessage, setStarMessage] = useState("");
 
   useEffect(() => {
     if (!initData) return;
@@ -44,6 +46,20 @@ export default function ShopPage() {
       : items.filter(
           (i) => i.gameId === activeCategory || i.category === activeCategory
         );
+
+
+  const gemPacks = [{ gems: 100, stars: 50 }, { gems: 250, stars: 100 }, { gems: 600, stars: 200 }, { gems: 1500, stars: 450 }, { gems: 4000, stars: 1000 }];
+  const buyGemPack = async (pack: { gems:number; stars:number }) => {
+    if(!initData||starBuying)return;setStarBuying(pack.gems);setStarMessage("");
+    try{
+      const response=await fetch("/api/payments/stars",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({initData,gems:pack.gems})});
+      const result=await response.json();if(!response.ok)throw new Error(result.error||"Не удалось создать счёт");
+      const tg=(window as any).Telegram?.WebApp;
+      if(tg?.openInvoice){tg.openInvoice(result.invoiceLink,(status:string)=>{if(status==="paid"){setStarMessage("Платёж подтверждён. Обновляем баланс...");refreshUser().catch(()=>{});}else if(status==="failed"){setStarMessage("Telegram не смог завершить платёж.");}else if(status==="cancelled"){setStarMessage("Оплата отменена.");}});}
+      else {window.location.href=result.invoiceLink;}
+    }catch(error){setStarMessage(error instanceof Error?error.message:"Ошибка сети");}
+    finally{setStarBuying(null);}
+  };
 
   const handleEquip = async (item: ShopItemDTO) => {
     if (!initData || buying) return;
@@ -126,6 +142,14 @@ export default function ShopPage() {
           </div>
         </div>
       )}
+
+
+      <section className="mb-5 rounded-2xl border border-amber-300/15 bg-gradient-to-br from-[#29200e] via-[#17130d] to-[#111] p-4">
+        <div className="mb-3 flex items-center justify-between"><div><p className="text-[10px] font-bold uppercase tracking-[.2em] text-amber-300/70">Telegram Stars · XTR</p><h2 className="mt-1 text-lg font-bold text-white">Пополнение гемов</h2></div><span className="rounded-xl bg-amber-300/10 p-2 text-amber-300">★</span></div>
+        <p className="mb-3 text-xs leading-relaxed text-white/45">Оплата открывается в Telegram. Гемы начисляются только после подтверждения успешного платежа ботом.</p>
+        <div className="grid grid-cols-2 gap-2">{gemPacks.map(pack=><button key={pack.gems} onClick={()=>buyGemPack(pack)} disabled={starBuying!==null} className="rounded-xl border border-white/10 bg-white/5 p-3 text-left transition hover:bg-white/10 disabled:opacity-50"><span className="block text-base font-bold text-white">{formatNumber(pack.gems)} гемов</span><span className="mt-1 block text-xs font-semibold text-amber-300">{starBuying===pack.gems?"Создаём счёт...":`★ ${pack.stars} Stars`}</span></button>)}</div>
+        {starMessage&&<p className="mt-3 text-xs text-white/65">{starMessage}</p>}
+      </section>
 
       {/* Categories */}
       <div className="flex gap-2 overflow-x-auto pb-3 mb-4 scrollbar-hide">
