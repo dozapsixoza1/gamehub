@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
       const profileBio = typeof body.profileBio === "string" ? body.profileBio.trim().slice(0, 180) || null : undefined;
       let profileShowcase: string[] | undefined;
       if (Array.isArray(body.profileShowcase)) {
-        const requested = [...new Set(body.profileShowcase.filter((id: unknown): id is string => typeof id === "string").slice(0, 3))];
+        const requested: string[] = Array.from(new Set<string>((body.profileShowcase as unknown[]).filter((id): id is string => typeof id === "string").slice(0, 3)));
         const unlocked = await prisma.userAchievement.findMany({ where: { userId: me.id, achievementId: { in: requested } }, select: { achievementId: true } });
         profileShowcase = unlocked.map(entry => entry.achievementId);
       }
