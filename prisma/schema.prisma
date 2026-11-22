@@ -382,6 +382,9 @@ model UserSettings {
   nicknameColor String?
   profileBadge  String?
   profileBackground String?
+  avatarAnimation String?
+  profileEffect String?
+  profileTitle String?
   updatedAt      DateTime @updatedAt
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@map("user_settings")
