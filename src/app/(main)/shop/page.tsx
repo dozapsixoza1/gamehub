@@ -14,6 +14,7 @@ const CATEGORIES = [
   { id: "global", label: "Общее" },
   { id: "boosts", label: "Бусты" },
   { id: "cosmetics", label: "Косметика" },
+  { id: "owned", label: "Моя коллекция" },
 ];
 
 export default function ShopPage() {
@@ -40,12 +41,7 @@ export default function ShopPage() {
       .finally(() => setLoading(false));
   }, [initData]);
 
-  const filtered =
-    activeCategory === "all"
-      ? items
-      : items.filter(
-          (i) => i.gameId === activeCategory || i.category === activeCategory
-        );
+  const filtered = activeCategory === "all" ? items : activeCategory === "owned" ? items.filter(i => ownedItemIds.includes(i.id)) : items.filter(i => i.gameId === activeCategory || i.category === activeCategory);
 
 
   const gemPacks = [{ gems: 100, stars: 50 }, { gems: 250, stars: 100 }, { gems: 600, stars: 200 }, { gems: 1500, stars: 450 }, { gems: 4000, stars: 1000 }];
@@ -210,8 +206,8 @@ export default function ShopPage() {
                   </p>
                 )}
                 <div className="flex flex-wrap gap-2 mt-1.5">
-                  {item.category === "cosmetics" && ownedItemIds.includes(item.id) && <button onClick={() => handleEquip(item)} disabled={!!buying} className={`rounded-lg px-2.5 py-1 text-xs disabled:opacity-50 ${isEquipped(item) ? "bg-emerald-500/15 text-emerald-300" : "bg-white/10 text-white"}`}>{buying === item.id ? "..." : isEquipped(item) ? "Снять" : "Надеть"}</button>}{item.category === "cosmetics" && isEquipped(item) && <span className="self-center text-[10px] text-emerald-300">Сейчас в профиле</span>}
-                  {item.priceCoins > 0 && (
+                  {item.category === "cosmetics" && ownedItemIds.includes(item.id) && <button onClick={() => handleEquip(item)} disabled={!!buying} className={`rounded-lg px-2.5 py-1 text-xs disabled:opacity-50 ${isEquipped(item) ? "bg-emerald-500/15 text-emerald-300" : "bg-white/10 text-white"}`}>{buying === item.id ? "..." : isEquipped(item) ? "Снять" : "Надеть"}</button>}{item.category === "cosmetics" && isEquipped(item) && <span className="self-center text-[10px] text-emerald-300">Сейчас в профиле</span>}{item.category === "cosmetics" && ownedItemIds.includes(item.id) && !isEquipped(item) && <span className="self-center text-[10px] text-white/35">В коллекции</span>}
+                  {!(item.category === "cosmetics" && ownedItemIds.includes(item.id)) && item.priceCoins > 0 && (
                     <button
                       onClick={() => handleBuy(item, "coins")}
                       disabled={!!buying}
@@ -221,7 +217,7 @@ export default function ShopPage() {
                       {formatNumber(item.priceCoins)}
                     </button>
                   )}
-                  {item.priceGems > 0 && (
+                  {!(item.category === "cosmetics" && ownedItemIds.includes(item.id)) && item.priceGems > 0 && (
                     <button
                       onClick={() => handleBuy(item, "gems")}
                       disabled={!!buying}
