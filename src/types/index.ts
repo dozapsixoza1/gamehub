@@ -22,6 +22,8 @@ export interface UserProfile {
   avatarAnimation?: string | null;
   profileEffect?: string | null;
   profileTitle?: string | null;
+  profileBio?: string | null;
+  profileShowcase?: string[];
 }
 
 export interface ShopItemDTO {
