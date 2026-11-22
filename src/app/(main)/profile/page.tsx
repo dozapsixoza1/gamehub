@@ -95,11 +95,11 @@ export default function ProfilePage() {
   return (
     <div className="px-4 pt-6 pb-8 max-w-lg mx-auto space-y-4">
       <div className="flex items-center gap-4">
-        <PlayerAvatar name={user.displayName || user.firstName || "Игрок"} imageUrl={user.avatarUrl || user.photoUrl} online sizeClassName="h-16 w-16 text-2xl font-bold"/>
+        <div className={user.profileFrame ? "rounded-full p-1 ring-2 ring-violet-400 shadow-lg shadow-violet-500/20" : ""}><PlayerAvatar name={user.displayName || user.firstName || "Игрок"} imageUrl={user.avatarUrl || user.photoUrl} online sizeClassName="h-16 w-16 text-2xl font-bold"/></div>
         <div className="min-w-0">
-          <h1 className="text-xl font-bold text-white truncate">{user.displayName || `${user.firstName || ""} ${user.lastName || ""}`.trim()}</h1>
+          <h1 className="text-xl font-bold text-white truncate" style={user.nicknameColor === "amethyst" ? { color: "#c4b5fd" } : undefined}>{user.displayName || `${user.firstName || ""} ${user.lastName || ""}`.trim()}</h1>
           {user.username && <p className="text-white/40 text-sm">@{user.username}</p>}
-          <div className="mt-2"><PlayerBadges isAdmin={user.isAdmin} isVerified={user.isVerified} /></div>
+          <div className="mt-2 flex flex-wrap items-center gap-2"><PlayerBadges isAdmin={user.isAdmin} isVerified={user.isVerified} />{user.profileBadge === "winner" && <span className="rounded-full bg-amber-400/15 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-amber-300">🏆 Победитель</span>}</div>
         </div>
       </div>
 
@@ -109,7 +109,7 @@ export default function ProfilePage() {
           <div className="text-right"><p className="text-xs text-white/45">Опыт</p><p className="font-bold text-white">{formatNumber(p?.xp ?? 0)} XP</p></div>
         </div>
         <div className="h-2 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-gradient-to-r from-red-500 to-orange-400 rounded-full" style={{ width: `${progress}%` }} /></div>
-        <p className="text-[11px] text-white/35 mt-2">{p ? `${p.xp - p.currentLevelXp} / ${p.nextLevelXp - p.currentLevelXp} XP до следующего уровня` : "Загрузка прогресса..."}</p>
+        <p className="text-[11px] text-white/35 mt-2">{p ? `${p.xp - p.currentLevelXp} / ${p.nextLevelXp - p.currentLevelXp} XP до следующего уровня` : progressLoading ? "Загружаем статистику..." : "Прогресс временно недоступен"}</p>
       </section>
 
       <div className="grid grid-cols-2 gap-3">
@@ -137,7 +137,7 @@ export default function ProfilePage() {
 
       <section className="glass rounded-2xl p-4">
         <div className="flex items-center justify-between mb-3"><div className="flex items-center gap-2"><Star size={18} className="text-yellow-400" /><h2 className="font-semibold text-white">Достижения</h2></div><span className="text-xs text-white/40">{data?.achievements.length ?? 0}</span></div>
-        {data?.achievements.length ? <div className="space-y-2">{data.achievements.map(a => <div key={a.id} className="flex items-center gap-3 bg-white/5 rounded-xl p-3"><span className="text-2xl">{a.achievement.icon}</span><div className="min-w-0 flex-1"><p className="text-sm font-medium text-white">{a.achievement.title}</p><p className="text-xs text-white/40">{a.achievement.description}</p></div></div>)}</div> : <p className="text-xs text-white/40">Пока нет открытых достижений. Играй и выполняй условия!</p>}
+        {progressLoading ? <p className="text-xs text-white/40">Загружаем достижения...</p> : data?.achievements.length ? <div className="space-y-2">{data.achievements.map(a => <div key={a.id} className="flex items-center gap-3 bg-white/5 rounded-xl p-3"><span className="text-2xl">{a.achievement.icon}</span><div className="min-w-0 flex-1"><p className="text-sm font-medium text-white">{a.achievement.title}</p><p className="text-xs text-white/40">{a.achievement.description}</p></div></div>)}</div> : <p className="text-xs text-white/40">Пока нет открытых достижений. Играй и выполняй условия!</p>}
       </section>
 
       <section className="glass rounded-2xl p-4">
