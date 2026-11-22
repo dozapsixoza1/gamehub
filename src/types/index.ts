@@ -19,6 +19,9 @@ export interface UserProfile {
   nicknameColor?: string | null;
   profileBadge?: string | null;
   profileBackground?: string | null;
+  avatarAnimation?: string | null;
+  profileEffect?: string | null;
+  profileTitle?: string | null;
 }
 
 export interface ShopItemDTO {
