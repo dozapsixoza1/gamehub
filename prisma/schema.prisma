@@ -65,6 +65,15 @@ model User {
   achievements     UserAchievement[]
   dailyRewards     DailyReward[]
   matchHistory     MatchHistory[]
+  friendshipsSent Friendship[] @relation("FriendshipRequester")
+  friendshipsReceived Friendship[] @relation("FriendshipAddressee")
+  challengesSent PlayerChallenge[] @relation("ChallengeSender")
+  challengesReceived PlayerChallenge[] @relation("ChallengeRecipient")
+  clanMemberships ClanMember[]
+  ownedClans Clan[] @relation("ClanOwner")
+  notifications AppNotification[]
+  questClaims QuestClaim[]
+  seasonRewards SeasonReward[]
   referralsMade    User[] @relation("UserReferrals")
   referredBy       User? @relation("UserReferrals", fields: [referredById], references: [id], onDelete: SetNull)
 
@@ -418,6 +427,7 @@ model Season {
   endsAt    DateTime
   isActive  Boolean  @default(false)
   createdAt DateTime @default(now())
+  rewards   SeasonReward[]
   @@map("seasons")
 }
 
@@ -576,4 +586,117 @@ model GroupGameRoom {
   @@index([chatId, status])
   @@index([status, createdAt])
   @@map("group_game_rooms")
+}
+
+
+// ======================
+// GAMEHUB 2.0: COMMUNITY, QUESTS AND SEASON REWARDS
+// ======================
+
+model Friendship {
+  id          String   @id @default(cuid())
+  requesterId String
+  addresseeId String
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  requester   User     @relation("FriendshipRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee   User     @relation("FriendshipAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@index([addresseeId, status, createdAt])
+  @@index([requesterId, status, createdAt])
+  @@map("friendships")
+}
+
+model PlayerChallenge {
+  id          String   @id @default(cuid())
+  challengerId String
+  challengedId String
+  gameId      String   @default("mafia")
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+  challenger  User     @relation("ChallengeSender", fields: [challengerId], references: [id], onDelete: Cascade)
+  challenged  User     @relation("ChallengeRecipient", fields: [challengedId], references: [id], onDelete: Cascade)
+
+  @@index([challengedId, status, createdAt])
+  @@index([challengerId, status, createdAt])
+  @@map("player_challenges")
+}
+
+model Clan {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  emblem      String?  @default("🛡️")
+  ownerId     String
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  owner       User     @relation("ClanOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     ClanMember[]
+
+  @@index([name])
+  @@map("clans")
+}
+
+model ClanMember {
+  id       String   @id @default(cuid())
+  clanId   String
+  userId   String
+  role     String   @default("MEMBER")
+  joinedAt DateTime @default(now())
+  clan     Clan     @relation(fields: [clanId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([clanId, userId])
+  @@index([userId, joinedAt])
+  @@map("clan_members")
+}
+
+model AppNotification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  body      String?
+  href      String?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+  @@map("app_notifications")
+}
+
+model QuestClaim {
+  id          String   @id @default(cuid())
+  userId      String
+  questCode   String
+  dateKey     String
+  rewardXp    Int
+  rewardCoins Int
+  claimedAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dateKey, questCode])
+  @@index([userId, claimedAt])
+  @@map("quest_claims")
+}
+
+model SeasonReward {
+  id          String   @id @default(cuid())
+  seasonId    String
+  userId      String
+  place       Int
+  rewardXp    Int
+  rewardCoins Int
+  awardedAt   DateTime @default(now())
+  season      Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([seasonId, userId])
+  @@unique([seasonId, place])
+  @@map("season_rewards")
 }
