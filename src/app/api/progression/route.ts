@@ -51,23 +51,25 @@ export async function GET(req: NextRequest) {
       user.isAdmin = true;
     }
 
-    await ensureAchievements();
+    const view = req.nextUrl.searchParams.get("view");
+    if (view === "history") {
+      const history = await prisma.matchHistory.findMany({
+        where: { userId: user.id },
+        orderBy: { playedAt: "desc" },
+        take: 20,
+      });
+      return NextResponse.json({ history }, { headers: { "Cache-Control": "private, no-store" } });
+    }
 
-    const [achievements, history, leaderboard, referrals, xpTransactions] = await Promise.all([
+    // Create achievement definitions only when the table is empty; never write on every profile visit.
+    const achievementCount = await prisma.achievement.count();
+    if (achievementCount === 0) await ensureAchievements();
+
+    const [achievements, referrals, xpTransactions] = await Promise.all([
       prisma.userAchievement.findMany({
         where: { userId: user.id },
         include: { achievement: true },
         orderBy: { unlockedAt: "desc" },
-      }),
-      prisma.matchHistory.findMany({
-        where: { userId: user.id },
-        orderBy: { playedAt: "desc" },
-        take: 20,
-      }),
-      prisma.user.findMany({
-        orderBy: [{ xp: "desc" }, { gamesWon: "desc" }],
-        take: 20,
-        select: { id: true, username: true, firstName: true, photoUrl: true, xp: true, level: true, gamesPlayed: true, gamesWon: true },
       }),
       prisma.user.count({ where: { referredById: user.id } }),
       prisma.xpTransaction.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 20, select: { id: true, amount: true, balanceAfter: true, source: true, reason: true, createdAt: true } }),
@@ -96,10 +98,8 @@ export async function GET(req: NextRequest) {
         referrals,
       },
       achievements,
-      history,
-      leaderboard,
       xpTransactions,
-    });
+    }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("Progression GET:", error);
     return NextResponse.json({ error: "Не удалось загрузить прогресс" }, { status: 500 });
