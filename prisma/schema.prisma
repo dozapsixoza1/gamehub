@@ -60,6 +60,7 @@ model User {
   // Relations
   promoRedemptions PromoRedemption[]
   purchases        Purchase[]
+  starOrders       StarOrder[]
   mafiaPlayers     MafiaPlayer[]
   ownedItems       UserItem[]
   achievements     UserAchievement[]
