@@ -72,10 +72,18 @@ export async function GET(req: NextRequest) {
     const season = await getActiveSeason();
     if (!season) return NextResponse.json({ season: null, tiers: [], passXp: 0, maxTier: MAX_TIER, premiumPrice: PREMIUM_PRICE });
 
-    const [xp, claims, unlock] = await Promise.all([
+    const [ledgerXp, matchXp, dailyXp, claims, unlock] = await Promise.all([
       prisma.xpTransaction.aggregate({
         where: { userId: user.id, amount: { gt: 0 }, createdAt: { gte: season.startsAt, lte: new Date() } },
         _sum: { amount: true },
+      }),
+      prisma.matchHistory.aggregate({
+        where: { userId: user.id, playedAt: { gte: season.startsAt, lte: new Date() } },
+        _sum: { xpEarned: true },
+      }),
+      prisma.dailyReward.aggregate({
+        where: { userId: user.id, createdAt: { gte: season.startsAt, lte: new Date() } },
+        _sum: { xp: true },
       }),
       prisma.battlePassClaim.findMany({
         where: { seasonId: season.id, userId: user.id },
@@ -87,7 +95,7 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
-    const passXp = Math.min(MAX_TIER * XP_PER_TIER, Math.max(0, xp._sum.amount || 0));
+    const earnedXp = (ledgerXp._sum.amount || 0) + (matchXp._sum.xpEarned || 0) + (dailyXp._sum.xp || 0);\n    const passXp = Math.min(MAX_TIER * XP_PER_TIER, Math.max(0, earnedXp));
     const claimed = new Set(claims.map((item) => `${item.tier}:${item.track}`));
     const tiers = Array.from({ length: MAX_TIER }, (_, index) => {
       const tier = index + 1;
@@ -154,11 +162,21 @@ export async function POST(req: NextRequest) {
       if (!Number.isInteger(tier) || tier < 1 || tier > MAX_TIER || !["free", "premium"].includes(track)) {
         return NextResponse.json({ error: "Некорректная награда" }, { status: 400 });
       }
-      const total = await prisma.xpTransaction.aggregate({
-        where: { userId: user.id, amount: { gt: 0 }, createdAt: { gte: season.startsAt, lte: new Date() } },
-        _sum: { amount: true },
-      });
-      const passXp = Math.max(0, total._sum.amount || 0);
+      const [ledgerXp, matchXp, dailyXp] = await Promise.all([
+        prisma.xpTransaction.aggregate({
+          where: { userId: user.id, amount: { gt: 0 }, createdAt: { gte: season.startsAt, lte: new Date() } },
+          _sum: { amount: true },
+        }),
+        prisma.matchHistory.aggregate({
+          where: { userId: user.id, playedAt: { gte: season.startsAt, lte: new Date() } },
+          _sum: { xpEarned: true },
+        }),
+        prisma.dailyReward.aggregate({
+          where: { userId: user.id, createdAt: { gte: season.startsAt, lte: new Date() } },
+          _sum: { xp: true },
+        }),
+      ]);
+      const passXp = Math.max(0, (ledgerXp._sum.amount || 0) + (matchXp._sum.xpEarned || 0) + (dailyXp._sum.xp || 0));
       if (passXp < tier * XP_PER_TIER) return NextResponse.json({ error: "Сначала открой этот уровень" }, { status: 409 });
       if (track === "premium") {
         const unlock = await prisma.battlePassUnlock.findUnique({
