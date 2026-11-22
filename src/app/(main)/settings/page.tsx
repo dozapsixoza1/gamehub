@@ -8,11 +8,11 @@ import { ArrowLeft, Save, Settings2, Palette, Sparkles, Monitor, Waves, Check, U
 type Settings = {
   displayName:string|null; avatarUrl:string|null; theme:string; soundEnabled:boolean;
   notifications:boolean; language:string; accentColor:string; compactMode:boolean;
-  animations:boolean; backgroundStyle:string;
+  animations:boolean; backgroundStyle:string; profileBio:string; profileShowcase:string[];
 };
 const defaults: Settings = {
   displayName:"", avatarUrl:"", theme:"dark", soundEnabled:true, notifications:true,
-  language:"ru", accentColor:"ruby", compactMode:false, animations:true, backgroundStyle:"aurora"
+  language:"ru", accentColor:"ruby", compactMode:false, animations:true, backgroundStyle:"aurora", profileBio:"", profileShowcase:[]
 };
 const themes = [
   {id:"dark",label:"Graphite",detail:"Классическая тёмная"},
@@ -48,9 +48,11 @@ export default function SettingsPage() {
   const [message,setMessage] = useState("");
   const [avatarPreview,setAvatarPreview] = useState<string | null>(null);
   const [avatarBusy,setAvatarBusy] = useState(false);
+  const [achievements,setAchievements] = useState<{id:string;title:string;icon:string}[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
   useEffect(()=>{
     if(!initData)return;
+    fetch("/api/progression",{headers:{"x-init-data":initData},cache:"no-store"}).then(r=>r.json()).then(d=>setAchievements((d.achievements||[]).map((a:any)=>({id:a.achievement?.id||a.id,title:a.achievement?.title||"Достижение",icon:a.achievement?.icon||"🏆"})))).catch(()=>{});
     fetch("/api/hub?type=settings",{headers:{"x-init-data":initData},cache:"no-store"})
       .then(r=>r.json()).then(d=>{
         if(d.settings){const next={...defaults,...d.settings};setS(next);applySettings(next);}
@@ -136,6 +138,7 @@ export default function SettingsPage() {
       <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden" onChange={e=>uploadAvatar(e.target.files?.[0])}/>
       <p className="text-[11px] text-white/35">После удаления снова будет показываться фотография Telegram.</p>
     </section>
+    <section className="glass rounded-2xl p-4 space-y-3"><h2 className="font-semibold text-white">О себе</h2><textarea value={s.profileBio||""} onChange={e=>change({profileBio:e.target.value.slice(0,180)})} maxLength={180} rows={3} placeholder="Расскажи немного о себе..." className="w-full resize-none rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-sm text-white outline-none"/><p className="text-right text-[10px] text-white/35">{(s.profileBio||"").length}/180</p><div className="flex items-center justify-between"><h3 className="text-sm font-semibold text-white">Избранные достижения</h3><span className="text-[10px] text-white/40">{s.profileShowcase.length}/3</span></div>{achievements.length?achievements.map(a=><label key={a.id} className="flex items-center gap-3 rounded-xl bg-white/5 p-3 text-sm text-white/80"><input type="checkbox" checked={s.profileShowcase.includes(a.id)} disabled={!s.profileShowcase.includes(a.id)&&s.profileShowcase.length>=3} onChange={e=>change({profileShowcase:e.target.checked?[...s.profileShowcase,a.id]:s.profileShowcase.filter(id=>id!==a.id)})} className="h-4 w-4 accent-primary"/><span>{a.icon}</span><span className="flex-1">{a.title}</span></label>):<p className="text-xs text-white/40">Сначала открой достижения — здесь можно выбрать до трёх.</p>}</section>
     <section className="glass rounded-2xl p-4 space-y-2"><h2 className="font-semibold text-white">Язык интерфейса</h2><select value={s.language} onChange={e=>change({language:e.target.value})} className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-3 text-white"><option value="ru">Русский</option><option value="en">English</option></select><p className="text-xs text-white/35">Перевод отдельных экранов ещё требует локализации.</p></section>
     <button onClick={save} disabled={busy} className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary text-white font-semibold py-3 disabled:opacity-50"><Save size={17}/>{busy?"Сохраняем...":"Сохранить оформление"}</button>
     {message&&<p className="text-center text-sm text-white/60">{message}</p>}
