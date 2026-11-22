@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { TelegramProvider } from "@/components/layout/TelegramProvider";
+import Script from "next/script";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,7 +35,7 @@ export default function RootLayout({
   return (
     <html lang="ru" className="dark">
       <head>
-        <script src="https://telegram.org/js/telegram-web-app.js" async />
+        <Script src="https://telegram.org/js/telegram-web-app.js" strategy="beforeInteractive" />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans`}>
         <TelegramProvider>{children}</TelegramProvider>
