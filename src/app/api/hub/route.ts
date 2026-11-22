@@ -103,7 +103,6 @@ export async function POST(req: NextRequest) {
         create: {
           userId: me.id,
           displayName: typeof body.displayName === "string" ? body.displayName.trim().slice(0,32) || null : null,
-          avatarUrl: typeof body.avatarUrl === "string" ? body.avatarUrl.trim().slice(0,500) || null : null,
           theme: allowedThemes.includes(body.theme) ? body.theme : "dark",
           soundEnabled: body.soundEnabled !== false,
           notifications: body.notifications !== false,
@@ -117,7 +116,6 @@ export async function POST(req: NextRequest) {
         },
         update: {
           ...(typeof body.displayName === "string" ? { displayName: body.displayName.trim().slice(0,32) || null } : {}),
-          ...(typeof body.avatarUrl === "string" ? { avatarUrl: body.avatarUrl.trim().slice(0,500) || null } : {}),
           ...(allowedThemes.includes(body.theme) ? { theme: body.theme } : {}),
           ...(typeof body.soundEnabled === "boolean" ? { soundEnabled: body.soundEnabled } : {}),
           ...(typeof body.notifications === "boolean" ? { notifications: body.notifications } : {}),
