@@ -43,7 +43,7 @@ export default function ShopPage() {
           (i) => i.gameId === activeCategory || i.category === activeCategory
         );
 
-  const handleEquip = async (item: ShopItemDTO) => {\n    if (!initData || buying) return;\n    setBuying(item.id);\n    try {\n      const res = await fetch("/api/shop", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ initData, itemId: item.id, action: "equip" }) });\n      const data = await res.json();\n      if (!res.ok) throw new Error(data.message || data.error || "Не удалось экипировать предмет");\n      alert("Предмет экипирован");\n    } catch (error) { alert(error instanceof Error ? error.message : "Ошибка сети"); }\n    finally { setBuying(null); }\n  };\n\n  const handleBuy = async (item: ShopItemDTO, currency: "coins" | "gems") => {
+  const handleEquip = async (item: ShopItemDTO) => {\n    if (!initData || buying) return;\n    setBuying(item.id);\n    try {\n      const res = await fetch("/api/shop", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ initData, itemId: item.id, action: "equip" }) });\n      const data = await res.json();\n      if (!res.ok) throw new Error(data.message || data.error || "Не удалось экипировать предмет");\n      await refreshUser();\n      alert("Предмет экипирован");\n    } catch (error) { alert(error instanceof Error ? error.message : "Ошибка сети"); }\n    finally { setBuying(null); }\n  };\n\n  const handleBuy = async (item: ShopItemDTO, currency: "coins" | "gems") => {
     if (!initData || buying) return;
     setBuying(item.id);
 
