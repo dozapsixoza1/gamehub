@@ -15,7 +15,7 @@ type ProgressData = {
     xp: number; level: number; currentLevelXp: number; nextLevelXp: number;
     dailyStreak: number; referralCode: string; referrals: number;
   };
-  achievements: { id: string; unlockedAt: string; achievement: { title: string; description: string; icon: string; xpReward: number; coinsReward: number } }[];
+  achievements: { id: string; unlockedAt: string; achievement: { id: string; title: string; description: string; icon: string; xpReward: number; coinsReward: number } }[];
   xpTransactions: { id: string; amount: number; balanceAfter: number; source: string; reason: string; createdAt: string }[];
 };
 
