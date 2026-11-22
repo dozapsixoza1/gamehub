@@ -61,6 +61,7 @@ export default function ShopPage() {
       const data = await res.json();
 
       if (data.success) {
+        if (item.category === "cosmetics") setOwnedItemIds((current) => current.includes(item.id) ? current : [...current, item.id]);
         await refreshUser();
         // Можно добавить toast
       } else {
