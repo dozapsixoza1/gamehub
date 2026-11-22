@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ error: "Нет доступа. Перезапусти GameHub и попробуй снова." }, { status: 401 });
 
     if (form.get("action") === "remove") {
-      await prisma.userSettings.update({ where: { userId: user.id }, data: { avatarUrl: null } });
+      await prisma.userSettings.upsert({ where: { userId: user.id }, create: { userId: user.id, avatarUrl: null }, update: { avatarUrl: null } });
       return NextResponse.json({ success: true, avatarUrl: null });
     }
 
@@ -84,9 +84,10 @@ export async function POST(req: NextRequest) {
     }
 
     const { data } = storage.from(BUCKET).getPublicUrl(path);
-    await prisma.userSettings.update({
+    await prisma.userSettings.upsert({
       where: { userId: user.id },
-      data: { avatarUrl: data.publicUrl },
+      create: { userId: user.id, avatarUrl: data.publicUrl },
+      update: { avatarUrl: data.publicUrl },
     });
     return NextResponse.json({ success: true, avatarUrl: data.publicUrl });
   } catch (error) {
