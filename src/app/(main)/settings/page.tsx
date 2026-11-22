@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTelegram } from "@/components/layout/TelegramProvider";
-import { ArrowLeft, Save, Settings2, Palette, Sparkles, Monitor, Waves, Check } from "lucide-react";
+import { ArrowLeft, Save, Settings2, Palette, Sparkles, Monitor, Waves, Check, Upload, X, ImagePlus } from "lucide-react";
 
 type Settings = {
   displayName:string|null; avatarUrl:string|null; theme:string; soundEnabled:boolean;
@@ -42,10 +42,13 @@ function applySettings(s: Settings) {
   try { tg?.setHeaderColor?.(shellColor); tg?.setBackgroundColor?.(shellColor); } catch {}
 }
 export default function SettingsPage() {
-  const { initData } = useTelegram();
+  const { initData, refreshUser } = useTelegram();
   const [s,setS] = useState<Settings>(defaults);
   const [busy,setBusy] = useState(false);
   const [message,setMessage] = useState("");
+  const [avatarPreview,setAvatarPreview] = useState<string | null>(null);
+  const [avatarBusy,setAvatarBusy] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
   useEffect(()=>{
     if(!initData)return;
     fetch("/api/hub?type=settings",{headers:{"x-init-data":initData},cache:"no-store"})
@@ -53,6 +56,25 @@ export default function SettingsPage() {
         if(d.settings){const next={...defaults,...d.settings};setS(next);applySettings(next);}
       }).catch(()=>setMessage("Не удалось загрузить настройки"));
   },[initData]);
+  useEffect(()=>{ if(!avatarPreview) return; return ()=>URL.revokeObjectURL(avatarPreview); },[avatarPreview]);
+  const uploadAvatar=async(file?:File)=>{
+    if(!file||!initData)return;
+    if(!["image/jpeg","image/png","image/webp","image/gif"].includes(file.type)){setMessage("Выбери JPG, PNG, WEBP или GIF");return;}
+    if(file.size>5*1024*1024){setMessage("Максимальный размер аватара — 5 МБ");return;}
+    setAvatarPreview(URL.createObjectURL(file));setAvatarBusy(true);setMessage("Загружаем аватар...");
+    try{
+      const form=new FormData();form.append("initData",initData);form.append("file",file);
+      const response=await fetch("/api/profile/avatar",{method:"POST",body:form});
+      const result=await response.json();if(!response.ok)throw new Error(result.error||"Не удалось загрузить аватар");
+      setS(old=>({...old,avatarUrl:result.avatarUrl}));setMessage("Аватар обновлён");await refreshUser();
+    }catch(error){setMessage(error instanceof Error?error.message:"Ошибка загрузки аватара");setAvatarPreview(null);}
+    finally{setAvatarBusy(false);if(fileInput.current)fileInput.current.value="";}
+  };
+  const removeAvatar=async()=>{
+    if(!initData||avatarBusy)return;setAvatarBusy(true);
+    try{const form=new FormData();form.append("initData",initData);form.append("action","remove");const response=await fetch("/api/profile/avatar",{method:"POST",body:form});const result=await response.json();if(!response.ok)throw new Error(result.error||"Не удалось удалить аватар");setS(old=>({...old,avatarUrl:null}));setAvatarPreview(null);setMessage("Используется фото из Telegram");await refreshUser();}
+    catch(error){setMessage(error instanceof Error?error.message:"Ошибка");}finally{setAvatarBusy(false);}
+  };
   const change=(patch:Partial<Settings>)=>{
     setS(old=>{const next={...old,...patch};applySettings(next);return next;});
     setMessage("Есть несохранённые изменения");
@@ -98,8 +120,21 @@ export default function SettingsPage() {
       <h2 className="font-semibold text-white">Профиль игрока</h2>
       <label className="block text-xs text-white/45">Отображаемый никнейм</label>
       <input value={s.displayName||""} onChange={e=>change({displayName:e.target.value})} maxLength={32} placeholder="Имя из Telegram по умолчанию" className="w-full bg-black/20 border border-white/10 rounded-xl px-3 py-3 text-white outline-none"/>
-      <label className="block text-xs text-white/45">URL аватара</label>
-      <input value={s.avatarUrl||""} onChange={e=>change({avatarUrl:e.target.value})} maxLength={500} placeholder="https://..." className="w-full bg-black/20 border border-white/10 rounded-xl px-3 py-3 text-white outline-none"/>
+      <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-black/20 p-3">
+        <div className="h-20 w-20 shrink-0 overflow-hidden rounded-full border-2 border-white/15 bg-white/5 grid place-items-center">
+          {avatarPreview||s.avatarUrl ? <img src={avatarPreview||s.avatarUrl||""} alt="Предпросмотр аватара" className="h-full w-full object-cover"/> : <ImagePlus size={26} className="text-white/35"/>}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-white">Фото профиля</p>
+          <p className="mt-1 text-[11px] text-white/40">Выбери изображение прямо с устройства. JPG, PNG, WEBP или GIF · до 5 МБ.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" onClick={()=>fileInput.current?.click()} disabled={avatarBusy} className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"><Upload size={14}/>{avatarBusy?"Загрузка...":"Выбрать фото"}</button>
+            {s.avatarUrl&&<button type="button" onClick={removeAvatar} disabled={avatarBusy} className="inline-flex items-center gap-1 rounded-xl bg-white/10 px-3 py-2 text-xs text-white/70 disabled:opacity-50"><X size={13}/>Убрать</button>}
+          </div>
+        </div>
+      </div>
+      <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden" onChange={e=>uploadAvatar(e.target.files?.[0])}/>
+      <p className="text-[11px] text-white/35">После удаления снова будет показываться фотография Telegram.</p>
     </section>
     <section className="glass rounded-2xl p-4 space-y-2"><h2 className="font-semibold text-white">Язык интерфейса</h2><select value={s.language} onChange={e=>change({language:e.target.value})} className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-3 text-white"><option value="ru">Русский</option><option value="en">English</option></select><p className="text-xs text-white/35">Перевод отдельных экранов ещё требует локализации.</p></section>
     <button onClick={save} disabled={busy} className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary text-white font-semibold py-3 disabled:opacity-50"><Save size={17}/>{busy?"Сохраняем...":"Сохранить оформление"}</button>
