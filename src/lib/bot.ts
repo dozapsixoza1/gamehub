@@ -480,9 +480,13 @@ bot.on("pre_checkout_query", async (ctx) => {
   try {
     const order = await prisma.starOrder.findUnique({ where: { payload: query.invoice_payload } });
     const buyer = await prisma.user.findUnique({ where: { telegramId: BigInt(query.from.id) }, select: { id: true } });
-    const valid = !!order && order.status === "PENDING" && order.stars === query.total_amount
+    const matches = !!order && order.status === "PENDING" && order.stars === query.total_amount
       && query.currency === "XTR" && order.userId === buyer?.id;
-    if (valid) await ctx.answerPreCheckoutQuery(true);
+    const claimed = matches ? await prisma.starOrder.updateMany({
+      where: { id: order!.id, status: "PENDING" },
+      data: { status: "CHECKOUT" },
+    }) : { count: 0 };
+    if (claimed.count === 1) await ctx.answerPreCheckoutQuery(true);
     else await ctx.answerPreCheckoutQuery(false, { error_message: "Заказ недоступен. Создай новый счёт в GameHub." });
   } catch (error) {
     console.error("Stars pre-checkout error:", error);
@@ -495,14 +499,16 @@ bot.on("message:successful_payment", async (ctx) => {
   try {
     if (payment.currency !== "XTR") return;
     const order = await prisma.starOrder.findUnique({ where: { payload: payment.invoice_payload } });
-    const buyer = await prisma.user.findUnique({ where: { telegramId: BigInt(ctx.from.id) }, select: { id: true } });
+    const senderId = ctx.from?.id;
+    if (!senderId) return;
+    const buyer = await prisma.user.findUnique({ where: { telegramId: BigInt(senderId) }, select: { id: true } });
     if (!order || order.stars !== payment.total_amount || order.userId !== buyer?.id) {
       console.error("Stars payment did not match an order", payment.invoice_payload);
       return;
     }
     const fulfilled = await prisma.$transaction(async (tx) => {
       const claimed = await tx.starOrder.updateMany({
-        where: { id: order.id, status: "PENDING", telegramPaymentChargeId: null },
+        where: { id: order.id, status: "CHECKOUT", telegramPaymentChargeId: null },
         data: { status: "PAID", telegramPaymentChargeId: payment.telegram_payment_charge_id, paidAt: new Date() },
       });
       if (!claimed.count) return false;
