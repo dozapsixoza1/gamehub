@@ -30,12 +30,6 @@ export async function POST(req: NextRequest) {
     const user = await authenticatedUser(String(form.get("initData") || ""));
     if (!user) return NextResponse.json({ error: "Нет доступа. Перезапусти GameHub и попробуй снова." }, { status: 401 });
 
-    const settings = await prisma.userSettings.upsert({
-      where: { userId: user.id },
-      create: { userId: user.id },
-      update: {},
-    });
-
     if (form.get("action") === "remove") {
       await prisma.userSettings.update({ where: { userId: user.id }, data: { avatarUrl: null } });
       return NextResponse.json({ success: true, avatarUrl: null });
