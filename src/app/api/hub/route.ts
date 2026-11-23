@@ -35,9 +35,9 @@ export async function GET(req: NextRequest) {
       if (gameId === "all" && !season) {
         const users = await prisma.user.findMany({
           orderBy: [{ xp: "desc" }, { gamesWon: "desc" }], take: 100,
-          select: { id: true, username: true, firstName: true, photoUrl: true, lastActiveAt: true, xp: true, level: true, gamesPlayed: true, gamesWon: true, isAdmin: true, isVerified: true },
+          select: { id: true, username: true, firstName: true, photoUrl: true, lastActiveAt: true, xp: true, level: true, gamesPlayed: true, gamesWon: true, isAdmin: true, isVerified: true, adminStaff: { select: { role: true } }, settings: { select: { profileFrame: true, avatarAnimation: true, profileEffect: true, nicknameColor: true } } },
         });
-        return NextResponse.json({ users: users.map(({lastActiveAt,...u})=>({...u,isOnline:Date.now()-lastActiveAt.getTime()<90_000})), season: null });
+        return NextResponse.json({ users: users.map(({lastActiveAt,adminStaff,settings,...u})=>({...u,staffRole:adminStaff?.role||null,...settings,isOnline:Date.now()-lastActiveAt.getTime()<90_000})), season: null });
       }
       const grouped = await prisma.matchHistory.groupBy({
         by: ["userId"],
@@ -49,8 +49,8 @@ export async function GET(req: NextRequest) {
         _sum: { xpEarned: true },
       });
       const ids = grouped.sort((a,b) => (b._sum.xpEarned || 0) - (a._sum.xpEarned || 0)).slice(0,100);
-      const profiles = await prisma.user.findMany({ where: { id: { in: ids.map(x => x.userId) } }, select: { id:true, username:true, firstName:true, photoUrl:true, lastActiveAt:true, level:true, gamesPlayed:true, gamesWon:true, isAdmin:true, isVerified:true } });
-      const users = ids.map(x => { const profile=profiles.find(p=>p.id===x.userId); if(!profile)return null; const {lastActiveAt,...rest}=profile; return { ...rest, isOnline:Date.now()-lastActiveAt.getTime()<90_000, xp:x._sum.xpEarned||0, gamesInPeriod:x._count.id }; }).filter(Boolean);
+      const profiles = await prisma.user.findMany({ where: { id: { in: ids.map(x => x.userId) } }, select: { id:true, username:true, firstName:true, photoUrl:true, lastActiveAt:true, level:true, gamesPlayed:true, gamesWon:true, isAdmin:true, isVerified:true, adminStaff:{select:{role:true}}, settings:{select:{profileFrame:true,avatarAnimation:true,profileEffect:true,nicknameColor:true}} } });
+      const users = ids.map(x => { const profile=profiles.find(p=>p.id===x.userId); if(!profile)return null; const {lastActiveAt,...rest}=profile; return { ...rest, staffRole:profile.adminStaff?.role||null, ...profile.settings, isOnline:Date.now()-lastActiveAt.getTime()<90_000, xp:x._sum.xpEarned||0, gamesInPeriod:x._count.id }; }).filter(Boolean);
       return NextResponse.json({ users, season: activeSeason });
     }
 
