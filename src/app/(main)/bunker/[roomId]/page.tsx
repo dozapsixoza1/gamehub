@@ -2,7 +2,7 @@
 import {useCallback,useEffect,useState} from "react";
 import {useParams,useRouter} from "next/navigation";
 import {useTelegram} from "@/components/layout/TelegramProvider";
-import {Shield,Users,Copy,RefreshCw,Vote,Play,LogOut,CheckCircle2} from "lucide-react";
+import {Shield,Users,Copy,RefreshCw,Vote,Play,LogOut,CheckCircle2,Crown} from "lucide-react";
 type Player={id:string;userId:string;name:string;photo?:string|null;isHost:boolean;eliminated:boolean;character?:{profession:string;age:number;health:string;hobby:string;trait:string;drawback:string;baggage:string}|null;voted:boolean};
 type Room={id:string;code:string;status:string;round:number;maxPlayers:number;phaseEndsAt:string|null;voteHistory:{round:number;counts:Record<string,number>;eliminatedId:string|null;timedOut:boolean;at:string}[];winners:string[];players:Player[];myPlayerId:string;myCharacter:Player["character"];eliminated:string[]};
 export default function BunkerRoomPage(){
