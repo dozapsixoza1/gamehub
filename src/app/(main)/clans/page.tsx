@@ -1,0 +1,45 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useTelegram } from "@/components/layout/TelegramProvider";
+import { Shield, Plus, Users, Crown, Search, X, ImagePlus, ArrowRight, Swords } from "lucide-react";
+
+type Clan = { id:string; name:string; tag:string; description?:string|null; avatarUrl?:string|null; memberCount:number; owner?:{firstName?:string|null;username?:string|null} };
+export default function ClansPage() {
+  const { initData } = useTelegram();
+  const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [clans,setClans] = useState<Clan[]>([]);
+  const [myClan,setMyClan] = useState<(Clan & {role:string})|null>(null);
+  const [loading,setLoading] = useState(true);
+  const [showCreate,setShowCreate] = useState(false);
+  const [name,setName] = useState("");
+  const [tag,setTag] = useState("");
+  const [description,setDescription] = useState("");
+  const [avatar,setAvatar] = useState("");
+  const [file,setFile] = useState<File|null>(null);
+  const [busy,setBusy] = useState(false);
+  const [error,setError] = useState("");
+  const [query,setQuery] = useState("");
+  const load = () => { if(!initData)return; fetch("/api/clans",{headers:{"x-init-data":initData},cache:"no-store"}).then(r=>r.json()).then(d=>{setClans(d.clans||[]);setMyClan(d.myClan||null);}).catch(()=>setError("Не удалось загрузить кланы")).finally(()=>setLoading(false)); };
+  useEffect(()=>{load();},[initData]);
+  const chooseFile=(f:File|null)=>{if(!f)return;if(!["image/jpeg","image/png","image/webp"].includes(f.type)){setError("Выбери JPG, PNG или WEBP");return;}if(f.size>3*1024*1024){setError("Максимальный размер аватара — 3 МБ");return;}setFile(f);setAvatar(URL.createObjectURL(f));setError("");};
+  const create=async()=>{if(!initData)return;setBusy(true);setError("");try{let avatarUrl=avatar.startsWith("http")?avatar:"";if(file){const form=new FormData();form.set("initData",initData);form.set("file",file);const upload=await fetch("/api/clans/avatar",{method:"POST",body:form});const result=await upload.json();if(!upload.ok)throw new Error(result.error||"Ошибка загрузки аватара");avatarUrl=result.avatarUrl;}const response=await fetch("/api/clans",{method:"POST",headers:{"Content-Type":"application/json","x-init-data":initData},body:JSON.stringify({name,tag,description,avatarUrl})});const data=await response.json();if(!response.ok)throw new Error(data.error||"Не удалось создать клан");router.push("/clans/"+data.clan.id);}catch(e){setError(e instanceof Error?e.message:"Ошибка");}finally{setBusy(false);}};
+  const filtered=clans.filter(c=>(c.name+" "+c.tag).toLowerCase().includes(query.toLowerCase()));
+  return <main className="mx-auto max-w-lg space-y-5 px-4 pb-8 pt-6 text-white">
+    <div className="flex items-center justify-between"><div><p className="text-[10px] font-black uppercase tracking-[.25em] text-violet-300">GAMEHUB SOCIAL</p><h1 className="mt-1 text-3xl font-black">Кланы</h1><p className="mt-1 text-xs text-white/40">Создавай команду. Собирай свою историю.</p></div><div className="grid h-12 w-12 place-items-center rounded-2xl bg-violet-400/15 text-violet-200"><Shield size={25}/></div></div>
+    {myClan ? <Link href={"/clans/"+myClan.id} className="block overflow-hidden rounded-2xl border border-violet-300/20 bg-gradient-to-br from-violet-500/20 to-indigo-500/5 p-4"><div className="flex items-center gap-3">{myClan.avatarUrl?<img src={myClan.avatarUrl} className="h-14 w-14 rounded-2xl object-cover"/>:<div className="grid h-14 w-14 place-items-center rounded-2xl bg-white/10"><Shield/></div>}<div className="min-w-0 flex-1"><p className="text-[10px] font-bold uppercase tracking-widest text-violet-200">ТВОЙ КЛАН · [{myClan.tag}]</p><h2 className="truncate text-lg font-black">{myClan.name}</h2><p className="text-xs text-white/45">{myClan.memberCount} участников</p></div><ArrowRight/></div></Link> : <button onClick={()=>setShowCreate(true)} className="flex w-full items-center justify-between rounded-2xl border border-dashed border-violet-300/30 bg-violet-400/10 p-4 text-left"><span><span className="block font-bold">Создать свой клан</span><span className="mt-1 block text-xs text-white/45">Придумай название и уникальный тег</span></span><span className="grid h-10 w-10 place-items-center rounded-xl bg-violet-300 text-black"><Plus/></span></button>}
+    <div className="relative"><Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/35"/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Найти клан или тег..." className="w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-10 pr-4 text-sm outline-none focus:border-violet-300/40"/></div>
+    <div className="flex items-center justify-between"><h2 className="font-bold">Открытые кланы</h2><span className="text-xs text-white/35">{filtered.length} найдено</span></div>
+    {loading?<p className="py-10 text-center text-sm text-white/40">Загружаем кланы...</p>:filtered.length?<div className="space-y-2">{filtered.map(c=><Link href={"/clans/"+c.id} key={c.id} className="flex items-center gap-3 rounded-2xl border border-white/8 bg-white/[.035] p-3 transition hover:bg-white/[.07]">{c.avatarUrl?<img src={c.avatarUrl} className="h-12 w-12 rounded-xl object-cover"/>:<div className="grid h-12 w-12 place-items-center rounded-xl bg-white/8 text-violet-200"><Shield/></div>}<div className="min-w-0 flex-1"><div className="flex items-center gap-2"><span className="truncate font-bold">{c.name}</span><span className="rounded-md bg-violet-300/15 px-1.5 py-0.5 text-[10px] font-black text-violet-200">[{c.tag}]</span></div><p className="mt-1 truncate text-xs text-white/40">{c.description||"Клан GameHub"}</p></div><div className="text-right text-xs text-white/40"><Users size={14} className="ml-auto mb-1"/>{c.memberCount}</div></Link>)}</div>:<div className="rounded-2xl bg-white/[.03] py-10 text-center"><Swords className="mx-auto text-white/20" size={28}/><p className="mt-2 text-sm text-white/45">Пока нет подходящих кланов</p></div>}
+    {showCreate&&<div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/75 p-3 sm:items-center"><div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#11111a] p-5 shadow-2xl"><div className="mb-4 flex items-center justify-between"><div><p className="text-[10px] font-black tracking-[.2em] text-violet-300">NEW CLAN</p><h2 className="text-xl font-black">Создание клана</h2></div><button onClick={()=>setShowCreate(false)} className="rounded-xl bg-white/5 p-2"><X size={18}/></button></div>
+      <div className="mb-4 flex items-center gap-3"><button onClick={()=>inputRef.current?.click()} className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-2xl border border-dashed border-white/20 bg-white/5">{avatar?<img src={avatar} className="h-full w-full object-cover"/>:<ImagePlus className="text-white/45"/>}</button><div><p className="text-sm font-bold">Аватар клана</p><p className="mt-1 text-xs text-white/40">Выбери изображение из галереи</p><p className="mt-1 text-[10px] text-white/30">JPG, PNG, WEBP · до 3 МБ</p><input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={e=>chooseFile(e.target.files?.[0]||null)}/></div></div>
+      <label className="mb-1 block text-xs text-white/55">Название клана</label><input value={name} onChange={e=>setName(e.target.value)} maxLength={32} placeholder="Например, Shadow Legion" className="mb-3 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm outline-none focus:border-violet-300/40"/>
+      <label className="mb-1 block text-xs text-white/55">Тег клана <span className="text-violet-300">· 3–5 символов</span></label><div className="mb-3 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3"><span className="font-black text-violet-200">[</span><input value={tag} onChange={e=>setTag(e.target.value.toUpperCase().replace(/[^A-ZА-ЯЁ0-9]/g,"").slice(0,5))} placeholder="SHDW" className="min-w-0 flex-1 bg-transparent py-3 text-sm font-black tracking-widest outline-none"/><span className="font-black text-violet-200">]</span><span className="text-xs text-white/30">{tag.length}/5</span></div>
+      <label className="mb-1 block text-xs text-white/55">Описание <span className="text-white/25">· необязательно</span></label><textarea value={description} onChange={e=>setDescription(e.target.value.slice(0,240))} rows={3} placeholder="Расскажи о своём клане..." className="mb-2 w-full resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm outline-none focus:border-violet-300/40"/>
+      {error&&<p className="mb-3 text-xs text-red-400">{error}</p>}<button disabled={busy||name.trim().length<3||tag.length<3} onClick={create} className="w-full rounded-xl bg-violet-300 py-3 font-black text-black disabled:opacity-40">{busy?"Создаём...":"Создать клан"}</button>
+    </div></div>}
+  </main>;
+}
