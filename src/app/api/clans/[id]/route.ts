@@ -47,7 +47,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     const { id } = await context.params;
     const body = await req.json();
     const clan = await prisma.clan.findUnique({ where: { id } });
-    if (!clan || !clan.isPublic) return NextResponse.json({ error: "Клан не найден" }, { status: 404 });
+    if (!clan || (!clan.isPublic && body.action !== "joinInvite")) return NextResponse.json({ error: "Клан не найден" }, { status: 404 });
     const current = await prisma.clanMember.findFirst({ where: { userId:user.id } });
     const log = async (action:string, details?:string) => prisma.clanActionLog.create({data:{clanId:clan.id,actorId:user.id,action,details}});
     const myRole = current?.clanId===clan.id ? current.role : null;
