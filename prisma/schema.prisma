@@ -681,6 +681,9 @@ model Clan {
   applications ClanApplication[]
   actionLogs ClanActionLog[]
   trophies ClanTrophy[]
+  challengesSent ClanChallenge[] @relation("ClanChallengeSender")
+  challengesReceived ClanChallenge[] @relation("ClanChallengeReceiver")
+  challengesWon ClanChallenge[] @relation("ClanChallengeWinner")
 
   @@index([name])
   @@map("clans")
@@ -849,4 +852,23 @@ model ClanTrophy {
   clan        Clan @relation(fields: [clanId], references: [id], onDelete: Cascade)
   @@index([clanId, awardedAt])
   @@map("clan_trophies")
+}
+
+
+model ClanChallenge {
+  id                String   @id @default(cuid())
+  challengerClanId  String
+  challengedClanId  String
+  winnerClanId      String?
+  createdById       String
+  gameId            String   @default("bunker")
+  status            String   @default("PENDING")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  challenger        Clan     @relation("ClanChallengeSender", fields: [challengerClanId], references: [id], onDelete: Cascade)
+  challenged        Clan     @relation("ClanChallengeReceiver", fields: [challengedClanId], references: [id], onDelete: Cascade)
+  winner            Clan?    @relation("ClanChallengeWinner", fields: [winnerClanId], references: [id], onDelete: SetNull)
+  @@index([challengerClanId, status, createdAt])
+  @@index([challengedClanId, status, createdAt])
+  @@map("clan_challenges")
 }
