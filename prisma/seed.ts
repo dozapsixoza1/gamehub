@@ -139,6 +139,20 @@ const SHOP_ITEMS = [
     sortOrder: 33,
     metadata: { cosmeticType: "background", cosmeticValue: "aurora" },
   },
+
+  // === GAMEHUB PROFILE COSMETICS ===
+  { name: "Рамка «Аметистовая корона»", description: "Мягкое фиолетовое свечение вокруг аватара", gameId: "global", category: "cosmetics", priceCoins: 0, priceGems: 35, sortOrder: 34, metadata: { cosmeticType: "frame", cosmeticValue: "amethyst" } },
+  { name: "Рамка «Кибер-импульс»", description: "Холодная неоновая рамка", gameId: "global", category: "cosmetics", priceCoins: 3200, priceGems: 0, sortOrder: 35, metadata: { cosmeticType: "frame", cosmeticValue: "cyber" } },
+  { name: "Рамка «Золотой ранг»", description: "Золотое сияние профиля", gameId: "global", category: "cosmetics", priceCoins: 0, priceGems: 55, sortOrder: 36, metadata: { cosmeticType: "frame", cosmeticValue: "gold" } },
+  { name: "Рамка «Изумруд»", description: "Изумрудная подсветка", gameId: "global", category: "cosmetics", priceCoins: 4200, priceGems: 0, sortOrder: 37, metadata: { cosmeticType: "frame", cosmeticValue: "emerald" } },
+  { name: "Анимация аватара «Пульс»", description: "Аватар мягко пульсирует", gameId: "global", category: "cosmetics", priceCoins: 2600, priceGems: 0, sortOrder: 38, metadata: { cosmeticType: "animation", cosmeticValue: "pulse" } },
+  { name: "Анимация аватара «Орбита»", description: "Неоновое кольцо вращается вокруг аватара", gameId: "global", category: "cosmetics", priceCoins: 0, priceGems: 45, sortOrder: 39, metadata: { cosmeticType: "animation", cosmeticValue: "orbit" } },
+  { name: "Анимация аватара «Парение»", description: "Плавное движение вверх и вниз", gameId: "global", category: "cosmetics", priceCoins: 3000, priceGems: 0, sortOrder: 40, metadata: { cosmeticType: "animation", cosmeticValue: "float" } },
+  { name: "Эффект «Искры»", description: "Светящиеся частицы вокруг аватара", gameId: "global", category: "cosmetics", priceCoins: 0, priceGems: 50, sortOrder: 41, metadata: { cosmeticType: "effect", cosmeticValue: "spark" } },
+  { name: "Эффект «Пламя»", description: "Тёплое огненное свечение", gameId: "global", category: "cosmetics", priceCoins: 5000, priceGems: 0, sortOrder: 42, metadata: { cosmeticType: "effect", cosmeticValue: "flame" } },
+  { name: "Эффект «Глитч»", description: "Кибернетическое мерцание", gameId: "global", category: "cosmetics", priceCoins: 0, priceGems: 65, sortOrder: 43, metadata: { cosmeticType: "effect", cosmeticValue: "glitch" } },
+  { name: "Титул «Легенда GameHub»", description: "Титул под именем в профиле", gameId: "global", category: "cosmetics", priceCoins: 0, priceGems: 75, sortOrder: 44, metadata: { cosmeticType: "title", cosmeticValue: "Легенда GameHub" } },
+  { name: "Титул «Ветеран»", description: "Титул для опытных игроков", gameId: "global", category: "cosmetics", priceCoins: 6500, priceGems: 0, sortOrder: 45, metadata: { cosmeticType: "title", cosmeticValue: "Ветеран" } },
 ];
 
 const ACHIEVEMENTS = [

@@ -84,7 +84,7 @@ export default function BattlePassPage() {
             </div>
             <div className="mt-2 h-2 overflow-hidden rounded-full bg-black/40"><div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-300 transition-all" style={{ width: progress + "%" }}/></div>
             <p className="mt-2 text-[11px] text-white/45">До следующего уровня: {data.xpPerTier - (data.passXp % data.xpPerTier)} XP</p>
-          </> : <p className="mt-3 text-xs text-white/55">Администратор может запустить сезон в разделе «Сезоны». После запуска здесь появятся 50 уровней наград.</p><Link href="/seasons" className="mt-3 inline-flex rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white">Перейти к сезонам</Link>}
+          </> : <><p className="mt-3 text-xs text-white/55">Администратор может запустить сезон в разделе «Сезоны». После запуска здесь появятся 50 уровней наград.</p><Link href="/seasons" className="mt-3 inline-flex rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white">Перейти к сезонам</Link></>}
         </div>
       </section>
 

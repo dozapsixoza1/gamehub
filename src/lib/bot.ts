@@ -473,6 +473,54 @@ bot.on("message:text", async (ctx) => {
   }
 });
 
+
+/* Telegram Stars: validate pre-checkout and deliver only after successful_payment. */
+bot.on("pre_checkout_query", async (ctx) => {
+  const query = ctx.preCheckoutQuery;
+  try {
+    const order = await prisma.starOrder.findUnique({ where: { payload: query.invoice_payload } });
+    const buyer = await prisma.user.findUnique({ where: { telegramId: BigInt(query.from.id) }, select: { id: true } });
+    const matches = !!order && order.status === "PENDING" && order.stars === query.total_amount
+      && query.currency === "XTR" && order.userId === buyer?.id;
+    const claimed = matches ? await prisma.starOrder.updateMany({
+      where: { id: order!.id, status: "PENDING" },
+      data: { status: "CHECKOUT" },
+    }) : { count: 0 };
+    if (claimed.count === 1) await ctx.answerPreCheckoutQuery(true);
+    else await ctx.answerPreCheckoutQuery(false, { error_message: "Заказ недоступен. Создай новый счёт в GameHub." });
+  } catch (error) {
+    console.error("Stars pre-checkout error:", error);
+    await ctx.answerPreCheckoutQuery(false, { error_message: "Не удалось проверить заказ. Попробуй позже." });
+  }
+});
+
+bot.on("message:successful_payment", async (ctx) => {
+  const payment = ctx.message.successful_payment;
+  try {
+    if (payment.currency !== "XTR") return;
+    const order = await prisma.starOrder.findUnique({ where: { payload: payment.invoice_payload } });
+    const senderId = ctx.from?.id;
+    if (!senderId) return;
+    const buyer = await prisma.user.findUnique({ where: { telegramId: BigInt(senderId) }, select: { id: true } });
+    if (!order || order.stars !== payment.total_amount || order.userId !== buyer?.id) {
+      console.error("Stars payment did not match an order", payment.invoice_payload);
+      return;
+    }
+    const fulfilled = await prisma.$transaction(async (tx) => {
+      const claimed = await tx.starOrder.updateMany({
+        where: { id: order.id, status: "CHECKOUT", telegramPaymentChargeId: null },
+        data: { status: "PAID", telegramPaymentChargeId: payment.telegram_payment_charge_id, paidAt: new Date() },
+      });
+      if (!claimed.count) return false;
+      await tx.user.update({ where: { id: order.userId }, data: { gems: { increment: order.gems } } });
+      return true;
+    });
+    if (fulfilled) await ctx.reply("Оплата подтверждена Telegram. Гемы зачислены в GameHub.");
+  } catch (error) {
+    console.error("Stars successful payment fulfillment error:", error);
+  }
+});
+
 // Обработка ошибок
 bot.catch((err) => {
   console.error("Bot error:", err);
