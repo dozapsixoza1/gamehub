@@ -99,12 +99,17 @@ export async function GET(req: NextRequest) {
     const notes = resultValue(9, []);
     const nftOrders = resultValue(10, []);
     const messageReports = resultValue(11, []);
-    return NextResponse.json({
+    const responseBody = {
       actor: { root: actor.root, role: actor.role, permissions: actor.permissions },
       roles: Object.entries(ROLE_LABELS).map(([id, label]) => ({ id, label, permissions: ROLE_PERMISSIONS[id] })),
       stats: { users: usersCount, banned: bannedCount, verified: verifiedCount, openReports },
       staff, logs, users, reports, warnings, notes, nftOrders, messageReports,
-    });
+    };
+    // Prisma returns BigInt values (for example Telegram IDs); convert them to strings before JSON serialization.
+    const jsonSafeBody = JSON.parse(JSON.stringify(responseBody, (_key, value) =>
+      typeof value === "bigint" ? value.toString() : value
+    ));
+    return NextResponse.json(jsonSafeBody);
   } catch (error) {
     console.error("Admin GET:", error);
     return NextResponse.json({ error: "Не удалось загрузить панель" }, { status: 500 });
