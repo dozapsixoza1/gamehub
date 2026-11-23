@@ -59,36 +59,28 @@ async function ensureUser(ctx: MyContext) {
   if (!ctx.from) return null;
 
   const telegramId = BigInt(ctx.from.id);
+  const isAdminUser = ADMIN_IDS.includes(ctx.from.id);
 
-  let user = await prisma.user.findUnique({
+  // Один атомарный запрос вместо findUnique + create/update.
+  // Это снижает нагрузку на PostgreSQL и устраняет гонку при массовом /start.
+  return prisma.user.upsert({
     where: { telegramId },
+    create: {
+      telegramId,
+      username: ctx.from.username,
+      firstName: ctx.from.first_name,
+      lastName: ctx.from.last_name,
+      languageCode: ctx.from.language_code || "ru",
+      isAdmin: isAdminUser,
+    },
+    update: {
+      lastActiveAt: new Date(),
+      username: ctx.from.username,
+      firstName: ctx.from.first_name,
+      lastName: ctx.from.last_name,
+      ...(isAdminUser ? { isAdmin: true } : {}),
+    },
   });
-
-  if (!user) {
-    user = await prisma.user.create({
-      data: {
-        telegramId,
-        username: ctx.from.username,
-        firstName: ctx.from.first_name,
-        lastName: ctx.from.last_name,
-        languageCode: ctx.from.language_code || "ru",
-        isAdmin: ADMIN_IDS.includes(ctx.from.id),
-      },
-    });
-  } else {
-    // Обновляем lastActive
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        lastActiveAt: new Date(),
-        username: ctx.from.username,
-        firstName: ctx.from.first_name,
-        lastName: ctx.from.last_name,
-      },
-    });
-  }
-
-  return user;
 }
 
 // Inline-меню: пользователь вводит @gamehubesbot в любом чате и выбирает Мафию.
