@@ -19,14 +19,14 @@ export async function GET(req: NextRequest) {
     const [clans, membership] = await Promise.all([
       prisma.clan.findMany({
         where: { isPublic: true },
-        orderBy: [{ members: { _count: "desc" } }, { createdAt: "desc" }],
+        orderBy: [{ level: "desc" }, { xp: "desc" }, { createdAt: "desc" }],
         take: 60,
         include: { _count: { select: { members: true } }, owner: { select: { id: true, firstName: true, username: true } } },
       }),
       prisma.clanMember.findFirst({ where: { userId: user.id }, include: { clan: { select: { id: true, name: true, tag: true, avatarUrl: true } } } }),
     ]);
     return NextResponse.json({
-      clans: clans.map(c => ({ id:c.id, name:c.name, tag:c.tag, description:c.description, avatarUrl:c.avatarUrl, bannerUrl:c.bannerUrl, memberCount:c._count.members, owner:c.owner })),
+      clans: clans.map(c => ({ id:c.id, name:c.name, tag:c.tag, description:c.description, avatarUrl:c.avatarUrl, bannerUrl:c.bannerUrl, level:c.level, xp:c.xp, tagColor:c.tagColor, memberCount:c._count.members, owner:c.owner })),
       myClan: membership ? { ...membership.clan, role: membership.role } : null,
     });
   } catch (error) {
