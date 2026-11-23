@@ -138,3 +138,24 @@
 .avatar-flame { animation:gh-avatar-flame 1.6s ease-in-out infinite; }
 .avatar-glitch { animation:gh-avatar-glitch 3.5s steps(1) infinite; }
 @media (prefers-reduced-motion: reduce) { .avatar-pulse,.avatar-orbit,.avatar-float,.avatar-spark,.avatar-flame,.avatar-glitch { animation:none !important; } }
+
+/* Iridescent GameHub profile cosmetic */
+@keyframes gh-profile-prism {
+  0% { background-position: 0% 50%; filter: hue-rotate(0deg); }
+  50% { background-position: 100% 50%; filter: hue-rotate(24deg); }
+  100% { background-position: 0% 50%; filter: hue-rotate(0deg); }
+}
+.profile-prism {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid transparent !important;
+  background:
+    linear-gradient(125deg, rgba(12,12,22,.94), rgba(23,17,42,.92), rgba(10,31,39,.92)) padding-box,
+    linear-gradient(120deg, #a78bfa, #22d3ee, #f0abfc, #fbbf24, #a78bfa) border-box !important;
+  background-size: 100% 100%, 280% 280% !important;
+  animation: gh-profile-prism 8s ease-in-out infinite;
+  box-shadow: 0 0 24px rgba(167,139,250,.12), inset 0 0 24px rgba(34,211,238,.06);
+}
+@media (prefers-reduced-motion: reduce) {
+  .profile-prism { animation: none !important; }
+}
