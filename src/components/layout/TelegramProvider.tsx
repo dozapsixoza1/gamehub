@@ -86,48 +86,70 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Ждём загрузки Telegram WebApp
-    const tg = (window as any).Telegram?.WebApp;
+    let cancelled = false;
+    let attempts = 0;
+    let timer: ReturnType<typeof setInterval> | undefined;
 
-    if (tg) {
+    const initialize = () => {
+      const tg = (window as any).Telegram?.WebApp;
+      if (!tg) return false;
+
+      if (timer) clearInterval(timer);
+      if (cancelled) return true;
+
       setIsTelegram(true);
-      tg.ready();
-      tg.expand();
-      tg.setHeaderColor("#0a0a0a");
-      tg.setBackgroundColor("#0a0a0a");
-
-      // Отключаем вертикальные свайпы закрытия на iOS
       try {
+        tg.ready();
+        tg.expand();
+        tg.setHeaderColor("#0a0a0a");
+        tg.setBackgroundColor("#0a0a0a");
         tg.disableVerticalSwipes?.();
-      } catch {}
+      } catch (error) {
+        console.warn("Telegram WebApp setup:", error);
+      }
 
-      const data = tg.initData || "";
+      const data = String(tg.initData || "");
       setInitData(data);
-
       if (data) {
         authenticate(data);
       } else {
-        // Для разработки без Telegram
         setIsLoading(false);
       }
-    } else {
-      // Dev mode — фейковый пользователь
-      if (process.env.NODE_ENV === "development") {
-        setUser({
-          id: "dev-user",
-          telegramId: "123456789",
-          firstName: "Разработчик",
-          username: "dev",
-          coins: 1500,
-          gems: 50,
-          gamesPlayed: 12,
-          gamesWon: 5,
-          isAdmin: true,
-          isVerified: false,
-        });
-      }
-      setIsLoading(false);
+      return true;
+    };
+
+    // Telegram's external SDK can finish loading after React hydration.
+    if (!initialize()) {
+      timer = setInterval(() => {
+        attempts += 1;
+        if (initialize()) return;
+        if (attempts >= 100) {
+          if (timer) clearInterval(timer);
+          if (!cancelled) {
+            if (process.env.NODE_ENV === "development") {
+              setUser({
+                id: "dev-user",
+                telegramId: "123456789",
+                firstName: "Разработчик",
+                username: "dev",
+                coins: 1500,
+                gems: 50,
+                gamesPlayed: 12,
+                gamesWon: 5,
+                isAdmin: true,
+                isVerified: false,
+              });
+            }
+            setIsLoading(false);
+          }
+        }
+      }, 50);
     }
+
+    return () => {
+      cancelled = true;
+      if (timer) clearInterval(timer);
+    };
   }, []);
 
   useEffect(() => {

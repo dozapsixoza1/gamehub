@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
     const actor = await getActor(req.headers.get("x-init-data") || req.nextUrl.searchParams.get("initData") || "");
     if (!actor || !allowed(actor, "admin_access")) return NextResponse.json({ error: "Нет доступа к администрации" }, { status: 403 });
     const canViewUsers = allowed(actor, "users_view");
-    const [usersCount, bannedCount, verifiedCount, openReports, reports, staff, logs, users, warnings, notes, nftOrders, messageReports] = await Promise.all([
+    const queryResults = await Promise.allSettled([
       prisma.user.count(),
       prisma.user.count({ where: { isBanned: true } }),
       prisma.user.count({ where: { isVerified: true } }),
@@ -77,6 +77,27 @@ export async function GET(req: NextRequest) {
       actor.root ? prisma.nftOrder.findMany({ where: { status: "PENDING" }, include: { user: { select: { id: true, username: true, firstName: true } }, gift: true }, orderBy: { createdAt: "asc" }, take: 100 }) : Promise.resolve([]),
       allowed(actor, "reports_manage") ? prisma.messageReport.findMany({ where: { status: "OPEN" }, include: { reporter: { select: { username: true, firstName: true } }, message: { include: { sender: { select: { username: true, firstName: true } }, recipient: { select: { username: true, firstName: true } } } } }, orderBy: { createdAt: "desc" }, take: 50 }) : Promise.resolve([]),
     ]);
+    const queryLabels = ["usersCount", "bannedCount", "verifiedCount", "openReports", "reports", "staff", "logs", "users", "warnings", "notes", "nftOrders", "messageReports"];
+    const resultValue = <T,>(index: number, fallback: T): T => {
+      const result = queryResults[index];
+      if (result.status === "rejected") {
+        console.error("Admin query failed:", queryLabels[index], result.reason);
+        return fallback;
+      }
+      return result.value as T;
+    };
+    const usersCount = resultValue(0, 0);
+    const bannedCount = resultValue(1, 0);
+    const verifiedCount = resultValue(2, 0);
+    const openReports = resultValue(3, 0);
+    const reports = resultValue(4, []);
+    const staff = resultValue(5, []);
+    const logs = resultValue(6, []);
+    const users = resultValue(7, []);
+    const warnings = resultValue(8, []);
+    const notes = resultValue(9, []);
+    const nftOrders = resultValue(10, []);
+    const messageReports = resultValue(11, []);
     return NextResponse.json({
       actor: { root: actor.root, role: actor.role, permissions: actor.permissions },
       roles: Object.entries(ROLE_LABELS).map(([id, label]) => ({ id, label, permissions: ROLE_PERMISSIONS[id] })),
