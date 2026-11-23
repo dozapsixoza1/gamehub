@@ -100,7 +100,7 @@ export default function ProfilePage() {
           <h1 className="text-xl font-bold text-white truncate" style={user.nicknameColor === "amethyst" ? { color: "#c4b5fd" } : undefined}>{user.displayName || `${user.firstName || ""} ${user.lastName || ""}`.trim()}</h1>
           {user.username && <p className="text-white/40 text-sm">@{user.username}</p>}{user.profileTitle && <p className="mt-1 text-[10px] font-black uppercase tracking-[.18em] text-amber-300">{user.profileTitle}</p>}
           {user.profileBio && <p className="mt-2 max-w-xs text-xs leading-relaxed text-white/55">{user.profileBio}</p>}
-          <div className="mt-2 flex flex-wrap items-center gap-2"><PlayerBadges isAdmin={user.isAdmin} isVerified={user.isVerified} />{user.profileBadge === "winner" && <span className="rounded-full bg-amber-400/15 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-amber-300">🏆 Победитель</span>}</div>
+          <div className="mt-2 flex flex-wrap items-center gap-2"><PlayerBadges isAdmin={user.isAdmin} staffRole={user.staffRole} isVerified={user.isVerified} />{user.profileBadge === "winner" && <span className="rounded-full bg-amber-400/15 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-amber-300">🏆 Победитель</span>}</div>
         </div>
       </div>
 
