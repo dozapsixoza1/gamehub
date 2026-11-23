@@ -28,7 +28,9 @@ export async function GET(req:NextRequest,context:{params:Promise<{id:string}>})
       _count:{select:{members:true}},
       applications:{where:{status:"PENDING"},include:{user:{select:{id:true,firstName:true,username:true,level:true}}},orderBy:{createdAt:"asc"}},
       trophies:{orderBy:{awardedAt:"desc"},take:20},
-      actionLogs:{orderBy:{createdAt:"desc"},take:20}
+      actionLogs:{orderBy:{createdAt:"desc"},take:20},
+      challengesSent:{include:{challenged:{select:{id:true,name:true,tag:true}}},orderBy:{createdAt:"desc"},take:20},
+      challengesReceived:{include:{challenger:{select:{id:true,name:true,tag:true}}},orderBy:{createdAt:"desc"},take:20}
     }});
     if(!clan)return NextResponse.json({error:"Клан не найден"},{status:404});
     const membership=clan.members.find(m=>m.userId===user.id);
@@ -40,6 +42,10 @@ export async function GET(req:NextRequest,context:{params:Promise<{id:string}>})
       announcement:clan.announcement,isPublic:clan.isPublic,level:clan.level,xp:clan.xp,tagColor:clan.tagColor,inviteCode:manager?clan.inviteCode:null,
       createdAt:clan.createdAt,memberCount:clan._count.members,owner:clan.owner,trophies:clan.trophies,actionLogs:manager?clan.actionLogs:[],
       applications:manager?clan.applications.map(a=>({id:a.id,userId:a.userId,name:a.user.firstName||a.user.username||"Игрок",level:a.user.level,createdAt:a.createdAt})):[],
+      challenges:membership?[
+        ...clan.challengesSent.map(c=>({id:c.id,direction:"OUTGOING",status:c.status,gameId:c.gameId,otherClan:c.challenged,winnerClanId:c.winnerClanId,createdAt:c.createdAt})),
+        ...clan.challengesReceived.map(c=>({id:c.id,direction:"INCOMING",status:c.status,gameId:c.gameId,otherClan:c.challenger,winnerClanId:c.winnerClanId,createdAt:c.createdAt}))
+      ]:[],
       members:clan.members.map(m=>({id:m.user.id,role:m.role,joinedAt:m.joinedAt,name:m.user.settings?.displayName||[m.user.firstName,m.user.lastName].filter(Boolean).join(" ")||m.user.username||"Игрок",username:m.user.username,avatar:m.user.settings?.avatarUrl||m.user.photoUrl,level:m.user.level,nicknameColor:m.user.settings?.nicknameColor||null}))
     },myRole:membership?.role||null});
   }catch(error){console.error("Clan profile GET",error);return NextResponse.json({error:"Не удалось загрузить профиль клана"},{status:500});}
@@ -90,6 +96,41 @@ export async function POST(req:NextRequest,context:{params:Promise<{id:string}>}
         await addClanXp(clan.id,10);await log("APPLICATION_ACCEPTED",application.userId);
       }else{await prisma.clanApplication.update({where:{id:application.id},data:{status:"REJECTED"}});await log("APPLICATION_REJECTED",application.userId);}
       return NextResponse.json({success:true});
+    }
+    if(action==="challenge"){
+      if(!leader)return NextResponse.json({error:"Только лидер может вызвать другой клан"},{status:403});
+      const targetKey=String(body.targetClanId||body.targetTag||"").trim();
+      if(!targetKey)return NextResponse.json({error:"Укажи тег или ID клана-соперника"},{status:400});
+      const target=await prisma.clan.findFirst({where:{OR:[{id:targetKey},{slug:targetKey},{tag:targetKey.toUpperCase()}],isPublic:true}});
+      if(!target||target.id===clan.id)return NextResponse.json({error:"Открытый клан-соперник не найден"},{status:404});
+      const pending=await prisma.clanChallenge.findFirst({where:{status:{in:["PENDING","ACCEPTED"]},OR:[{challengerClanId:clan.id,challengedClanId:target.id},{challengerClanId:target.id,challengedClanId:clan.id}]}});
+      if(pending)return NextResponse.json({error:"Между этими кланами уже есть активный вызов"},{status:409});
+      const challenge=await prisma.clanChallenge.create({data:{challengerClanId:clan.id,challengedClanId:target.id,createdById:user.id,gameId:String(body.gameId||"bunker").slice(0,32)}});
+      await log("CHALLENGE_SENT",target.tag);return NextResponse.json({success:true,challengeId:challenge.id});
+    }
+    if(action==="challengeResponse"){
+      if(!leader)return NextResponse.json({error:"Только лидер принимающего клана может ответить"},{status:403});
+      const challenge=await prisma.clanChallenge.findFirst({where:{id:String(body.challengeId||""),challengedClanId:clan.id,status:"PENDING"}});
+      if(!challenge)return NextResponse.json({error:"Вызов не найден"},{status:404});
+      const status=body.decision==="accept"?"ACCEPTED":"REJECTED";
+      const updated=await prisma.clanChallenge.updateMany({where:{id:challenge.id,status:"PENDING"},data:{status}});
+      if(!updated.count)return NextResponse.json({error:"На вызов уже ответили"},{status:409});
+      await log(status==="ACCEPTED"?"CHALLENGE_ACCEPTED":"CHALLENGE_REJECTED",challenge.id);
+      return NextResponse.json({success:true});
+    }
+    if(action==="challengeFinish"){
+      if(!leader)return NextResponse.json({error:"Только лидер может зафиксировать результат"},{status:403});
+      const challenge=await prisma.clanChallenge.findFirst({where:{id:String(body.challengeId||""),status:"ACCEPTED",OR:[{challengerClanId:clan.id},{challengedClanId:clan.id}]}});
+      if(!challenge)return NextResponse.json({error:"Активное соревнование не найдено"},{status:404});
+      const winnerClanId=String(body.winnerClanId||"");
+      if(![challenge.challengerClanId,challenge.challengedClanId].includes(winnerClanId))return NextResponse.json({error:"Некорректный победитель"},{status:400});
+      const updated=await prisma.clanChallenge.updateMany({where:{id:challenge.id,status:"ACCEPTED"},data:{status:"COMPLETED",winnerClanId}});
+      if(!updated.count)return NextResponse.json({error:"Результат уже зафиксирован"},{status:409});
+      const loserClanId=winnerClanId===challenge.challengerClanId?challenge.challengedClanId:challenge.challengerClanId;
+      await addClanXp(winnerClanId,100);await addClanXp(loserClanId,25);
+      await prisma.clanTrophy.create({data:{clanId:winnerClanId,title:"Победа в соревновании",description:"Победа в межклановом матче",icon:"🏆"}});
+      await log("CHALLENGE_COMPLETED",winnerClanId);
+      return NextResponse.json({success:true,winnerClanId});
     }
     if(action==="announcement"){
       if(!manager)return NextResponse.json({error:"Недостаточно прав"},{status:403});
