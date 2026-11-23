@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     if (!valid || !tgUser) return NextResponse.json({ error: "Invalid initData" }, { status: 401 });
 
     const telegramId = BigInt(tgUser.id);
-    const adminIds = (process.env.ADMIN_TELEGRAM_IDS || "").split(",").map((id) => id.trim()).filter((id) => /^\\d+$/.test(id));
+    const adminIds = (process.env.ADMIN_TELEGRAM_IDS || "").split(",").map((id) => id.trim()).filter((id) => /^\d+$/.test(id));
     const isOwner = adminIds.includes(telegramId.toString());
     const isPrimaryOwner = adminIds[0] === telegramId.toString();
     const ownerXp = 990000;
