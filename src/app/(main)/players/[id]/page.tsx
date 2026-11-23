@@ -7,7 +7,7 @@ import {useTelegram} from "@/components/layout/TelegramProvider";
 import {PlayerBadges} from "@/components/players/PlayerBadges";
 import {PlayerAvatar} from "@/components/players/PlayerAvatar";
 type Nft={id:string;serialNumber:number;acquiredAt:string;gift:{id:string;name:string;rarity:string;imageUrl:string}};
-type Player={id:string;username:string|null;displayName:string;avatar:string|null;xp:number;level:number;gamesPlayed:number;gamesWon:number;winRate:number;isAdmin:boolean;isVerified:boolean;isOnline:boolean;nftOwnerships:Nft[]};
+type Player={id:string;username:string|null;displayName:string;avatar:string|null;xp:number;level:number;gamesPlayed:number;gamesWon:number;winRate:number;isAdmin:boolean;staffRole:string|null;isVerified:boolean;isOnline:boolean;nftOwnerships:Nft[]};
 export default function PublicPlayerProfile(){
  const params=useParams<{id:string}>(),{initData}=useTelegram();
  const [player,setPlayer]=useState<Player|null>(null),[error,setError]=useState(""),[loading,setLoading]=useState(true);
@@ -17,7 +17,7 @@ export default function PublicPlayerProfile(){
  return <div className="px-4 pt-6 pb-8 max-w-lg mx-auto space-y-4">
   <Link href="/leaderboard" className="inline-flex items-center gap-2 text-sm text-white/55"><ArrowLeft size={16}/>К рейтингу</Link>
   <section className="glass rounded-2xl p-5">
-   <div className="flex items-center gap-4"><PlayerAvatar name={player.displayName} imageUrl={player.avatar} online={player.isOnline} sizeClassName="h-20 w-20 text-2xl font-black"/><div className="min-w-0"><h1 className="text-xl font-bold text-white break-words">{player.displayName}</h1>{player.username&&<p className="text-sm text-white/40">@{player.username}</p>}<p className="text-xs mt-1 text-white/45">{player.isOnline?"В сети":"Не в сети"}</p><div className="mt-2"><PlayerBadges isAdmin={player.isAdmin} isVerified={player.isVerified}/></div></div></div>
+   <div className="flex items-center gap-4"><PlayerAvatar name={player.displayName} imageUrl={player.avatar} online={player.isOnline} sizeClassName="h-20 w-20 text-2xl font-black"/><div className="min-w-0"><h1 className="text-xl font-bold text-white break-words">{player.displayName}</h1>{player.username&&<p className="text-sm text-white/40">@{player.username}</p>}<p className="text-xs mt-1 text-white/45">{player.isOnline?"В сети":"Не в сети"}</p><div className="mt-2"><PlayerBadges isAdmin={player.isAdmin} staffRole={player.staffRole} isVerified={player.isVerified}/></div></div></div>
    <Link href={"/messages?with="+encodeURIComponent(player.id)} className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-bold text-black"><MessageCircle size={16}/>Написать сообщение</Link>
    <div className="grid grid-cols-2 gap-3 mt-5"><div className="rounded-xl bg-white/5 p-3"><p className="text-xs text-white/40">Уровень</p><p className="text-2xl font-black text-white">{player.level}</p></div><div className="rounded-xl bg-white/5 p-3"><p className="text-xs text-white/40">Опыт</p><p className="text-2xl font-black text-white">{player.xp} XP</p></div><div className="rounded-xl bg-white/5 p-3"><p className="text-xs text-white/40 flex gap-1"><Gamepad2 size={13}/>Матчи</p><p className="text-xl font-bold text-white">{player.gamesPlayed}</p></div><div className="rounded-xl bg-white/5 p-3"><p className="text-xs text-white/40 flex gap-1"><Trophy size={13}/>Победы</p><p className="text-xl font-bold text-white">{player.gamesWon} ({player.winRate}%)</p></div></div>
   </section>
