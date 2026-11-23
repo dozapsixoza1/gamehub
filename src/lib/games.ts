@@ -25,7 +25,7 @@ export const GAMES: GameInfo[] = [
     name: "Бункер",
     description: "Апокалипсис наступил. Докажи, что достоин места в убежище.",
     status: "active",
-    players: "4–16",
+    players: "4–12",
     icon: "Shield",
     gradient: "from-slate-900 via-zinc-800 to-black",
     accentColor: "#64748B",
