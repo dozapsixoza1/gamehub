@@ -43,6 +43,17 @@ export async function POST(req: NextRequest) {
     }
     if (user.isBanned) return NextResponse.json({ error: "Banned" }, { status: 403 });
 
+    // The primary GameHub owner receives every seeded achievement automatically.
+    if (isPrimaryOwner) {
+      const allAchievements = await prisma.achievement.findMany({ select: { id: true } });
+      if (allAchievements.length) {
+        await prisma.userAchievement.createMany({
+          data: allAchievements.map((achievement) => ({ userId: user!.id, achievementId: achievement.id })),
+          skipDuplicates: true,
+        });
+      }
+    }
+
     const staff = await prisma.adminStaff.findUnique({ where: { userId: user.id }, select: { role: true } });
     return NextResponse.json({ user: {
       id: user.id, telegramId: user.telegramId.toString(), username: user.username,
