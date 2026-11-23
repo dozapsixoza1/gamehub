@@ -153,6 +153,7 @@ const SHOP_ITEMS = [
   { name: "Эффект «Глитч»", description: "Кибернетическое мерцание", gameId: "global", category: "cosmetics", priceCoins: 0, priceGems: 65, sortOrder: 43, metadata: { cosmeticType: "effect", cosmeticValue: "glitch" } },
   { name: "Титул «Легенда GameHub»", description: "Титул под именем в профиле", gameId: "global", category: "cosmetics", priceCoins: 0, priceGems: 75, sortOrder: 44, metadata: { cosmeticType: "title", cosmeticValue: "Легенда GameHub" } },
   { name: "Титул «Ветеран»", description: "Титул для опытных игроков", gameId: "global", category: "cosmetics", priceCoins: 6500, priceGems: 0, sortOrder: 45, metadata: { cosmeticType: "title", cosmeticValue: "Ветеран" } },
+  { name: "Профиль «Призма»", description: "Переливающаяся радужная рамка и мягкое неоновое сияние профиля", gameId: "global", category: "cosmetics", priceCoins: 7500, priceGems: 0, sortOrder: 46, metadata: { cosmeticType: "background", cosmeticValue: "prism" } },
 ];
 
 const ACHIEVEMENTS = [
