@@ -43,7 +43,7 @@ jobs:
           DATABASE_URL: ${{ secrets.DIRECT_URL || secrets.DATABASE_URL }}
 
       - name: Apply database schema
-        run: npx prisma db push
+        run: npx prisma db push --accept-data-loss
         env:
           DATABASE_URL: ${{ secrets.DIRECT_URL || secrets.DATABASE_URL }}
 
