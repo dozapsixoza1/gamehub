@@ -95,7 +95,8 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
-    const earnedXp = (ledgerXp._sum.amount || 0) + (matchXp._sum.xpEarned || 0) + (dailyXp._sum.xp || 0);\n    const passXp = Math.min(MAX_TIER * XP_PER_TIER, Math.max(0, earnedXp));
+    const earnedXp = (ledgerXp._sum.amount || 0) + (matchXp._sum.xpEarned || 0) + (dailyXp._sum.xp || 0);
+    const passXp = Math.min(MAX_TIER * XP_PER_TIER, Math.max(0, earnedXp));
     const claimed = new Set(claims.map((item) => `${item.tier}:${item.track}`));
     const tiers = Array.from({ length: MAX_TIER }, (_, index) => {
       const tier = index + 1;

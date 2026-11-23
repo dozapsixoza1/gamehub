@@ -2,7 +2,7 @@ name: GameHub CI
 
 on:
   push:
-    branches: [main, feature/full-gamehub-expansion]
+    branches: [main, feature/full-gamehub-expansion, feature/profile-cosmetics-expansion]
   pull_request:
     branches: [main]
 

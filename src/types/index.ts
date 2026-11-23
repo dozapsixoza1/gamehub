@@ -19,6 +19,11 @@ export interface UserProfile {
   nicknameColor?: string | null;
   profileBadge?: string | null;
   profileBackground?: string | null;
+  avatarAnimation?: string | null;
+  profileEffect?: string | null;
+  profileTitle?: string | null;
+  profileBio?: string | null;
+  profileShowcase?: string[];
 }
 
 export interface ShopItemDTO {
@@ -30,6 +35,7 @@ export interface ShopItemDTO {
   priceCoins: number;
   priceGems: number;
   imageUrl?: string | null;
+  metadata?: { cosmeticType?: string; cosmeticValue?: string } | null;
 }
 
 export interface PromoCodeResult {

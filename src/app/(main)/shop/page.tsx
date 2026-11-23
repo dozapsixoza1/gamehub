@@ -14,6 +14,7 @@ const CATEGORIES = [
   { id: "global", label: "Общее" },
   { id: "boosts", label: "Бусты" },
   { id: "cosmetics", label: "Косметика" },
+  { id: "owned", label: "Моя коллекция" },
 ];
 
 export default function ShopPage() {
@@ -23,6 +24,9 @@ export default function ShopPage() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [buying, setBuying] = useState<string | null>(null);
   const [ownedItemIds, setOwnedItemIds] = useState<string[]>([]);
+  const [equipped, setEquipped] = useState<Record<string, string | null>>({});
+  const [starBuying, setStarBuying] = useState<number | null>(null);
+  const [starMessage, setStarMessage] = useState("");
 
   useEffect(() => {
     if (!initData) return;
@@ -31,30 +35,44 @@ export default function ShopPage() {
       .then((data) => {
         setItems(data.items || []);
         setOwnedItemIds(data.ownedItemIds || []);
+        setEquipped(data.equipped || {});
       })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [initData]);
 
-  const filtered =
-    activeCategory === "all"
-      ? items
-      : items.filter(
-          (i) => i.gameId === activeCategory || i.category === activeCategory
-        );
+  const filtered = activeCategory === "all" ? items : activeCategory === "owned" ? items.filter(i => ownedItemIds.includes(i.id)) : items.filter(i => i.gameId === activeCategory || i.category === activeCategory);
+
+
+  const gemPacks = [{ gems: 100, stars: 50 }, { gems: 250, stars: 100 }, { gems: 600, stars: 200 }, { gems: 1500, stars: 450 }, { gems: 4000, stars: 1000 }];
+  const buyGemPack = async (pack: { gems:number; stars:number }) => {
+    if(!initData||starBuying)return;setStarBuying(pack.gems);setStarMessage("");
+    try{
+      const response=await fetch("/api/payments/stars",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({initData,gems:pack.gems})});
+      const result=await response.json();if(!response.ok)throw new Error(result.error||"Не удалось создать счёт");
+      const tg=(window as any).Telegram?.WebApp;
+      if(tg?.openInvoice){tg.openInvoice(result.invoiceLink,(status:string)=>{if(status==="paid"){setStarMessage("Платёж подтверждён. Обновляем баланс...");refreshUser().catch(()=>{});}else if(status==="failed"){setStarMessage("Telegram не смог завершить платёж.");}else if(status==="cancelled"){setStarMessage("Оплата отменена.");}});}
+      else {window.location.href=result.invoiceLink;}
+    }catch(error){setStarMessage(error instanceof Error?error.message:"Ошибка сети");}
+    finally{setStarBuying(null);}
+  };
 
   const handleEquip = async (item: ShopItemDTO) => {
     if (!initData || buying) return;
     setBuying(item.id);
     try {
-      const res = await fetch("/api/shop", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ initData, itemId: item.id, action: "equip" }) });
+      const res = await fetch("/api/shop", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ initData, itemId: item.id, action: isEquipped(item) ? "unequip" : "equip" }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || data.error || "Не удалось экипировать предмет");
+      const key = item.metadata?.cosmeticType;
+      const value = item.metadata?.cosmeticValue;
+      if (key && value) setEquipped(current => ({ ...current, [key]: current[key] === value ? null : value }));
       await refreshUser();
-      alert("Предмет экипирован");
     } catch (error) { alert(error instanceof Error ? error.message : "Ошибка сети"); }
     finally { setBuying(null); }
   };
+
+  const isEquipped = (item: ShopItemDTO) => !!item.metadata?.cosmeticType && equipped[item.metadata.cosmeticType] === item.metadata.cosmeticValue;
 
   const handleBuy = async (item: ShopItemDTO, currency: "coins" | "gems") => {
     if (!initData || buying) return;
@@ -92,7 +110,7 @@ export default function ShopPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white">Магазин</h1>
         <p className="text-white/50 text-sm mt-1">
-          Улучшения и предметы для игр
+          Косметика профиля, игровые предметы и коллекции
         </p>
       </div>
 
@@ -120,6 +138,14 @@ export default function ShopPage() {
           </div>
         </div>
       )}
+
+
+      <section className="mb-5 rounded-2xl border border-amber-300/15 bg-gradient-to-br from-[#29200e] via-[#17130d] to-[#111] p-4">
+        <div className="mb-3 flex items-center justify-between"><div><p className="text-[10px] font-bold uppercase tracking-[.2em] text-amber-300/70">Telegram Stars · XTR</p><h2 className="mt-1 text-lg font-bold text-white">Пополнение гемов</h2></div><span className="rounded-xl bg-amber-300/10 p-2 text-amber-300">★</span></div>
+        <p className="mb-3 text-xs leading-relaxed text-white/45">Оплата открывается в Telegram. Гемы начисляются только после подтверждения успешного платежа ботом.</p>
+        <div className="grid grid-cols-2 gap-2">{gemPacks.map(pack=><button key={pack.gems} onClick={()=>buyGemPack(pack)} disabled={starBuying!==null} className="rounded-xl border border-white/10 bg-white/5 p-3 text-left transition hover:bg-white/10 disabled:opacity-50"><span className="block text-base font-bold text-white">{formatNumber(pack.gems)} гемов</span><span className="mt-1 block text-xs font-semibold text-amber-300">{starBuying===pack.gems?"Создаём счёт...":`★ ${pack.stars} Stars`}</span></button>)}</div>
+        {starMessage&&<p className="mt-3 text-xs text-white/65">{starMessage}</p>}
+      </section>
 
       {/* Categories */}
       <div className="flex gap-2 overflow-x-auto pb-3 mb-4 scrollbar-hide">
@@ -180,8 +206,8 @@ export default function ShopPage() {
                   </p>
                 )}
                 <div className="flex flex-wrap gap-2 mt-1.5">
-                  {item.category === "cosmetics" && ownedItemIds.includes(item.id) && <button onClick={() => handleEquip(item)} disabled={!!buying} className="rounded-lg bg-emerald-500/15 px-2.5 py-1 text-xs text-emerald-300 disabled:opacity-50">{buying === item.id ? "..." : "Надеть"}</button>}
-                  {item.priceCoins > 0 && (
+                  {item.category === "cosmetics" && ownedItemIds.includes(item.id) && <button onClick={() => handleEquip(item)} disabled={!!buying} className={`rounded-lg px-2.5 py-1 text-xs disabled:opacity-50 ${isEquipped(item) ? "bg-emerald-500/15 text-emerald-300" : "bg-white/10 text-white"}`}>{buying === item.id ? "..." : isEquipped(item) ? "Снять" : "Надеть"}</button>}{item.category === "cosmetics" && isEquipped(item) && <span className="self-center text-[10px] text-emerald-300">Сейчас в профиле</span>}{item.category === "cosmetics" && ownedItemIds.includes(item.id) && !isEquipped(item) && <span className="self-center text-[10px] text-white/35">В коллекции</span>}
+                  {!(item.category === "cosmetics" && ownedItemIds.includes(item.id)) && item.priceCoins > 0 && (
                     <button
                       onClick={() => handleBuy(item, "coins")}
                       disabled={!!buying}
@@ -191,7 +217,7 @@ export default function ShopPage() {
                       {formatNumber(item.priceCoins)}
                     </button>
                   )}
-                  {item.priceGems > 0 && (
+                  {!(item.category === "cosmetics" && ownedItemIds.includes(item.id)) && item.priceGems > 0 && (
                     <button
                       onClick={() => handleBuy(item, "gems")}
                       disabled={!!buying}
