@@ -74,6 +74,8 @@ model User {
   notifications AppNotification[]
   questClaims QuestClaim[]
   seasonRewards SeasonReward[]
+  battlePassClaims BattlePassClaim[]
+  battlePassUnlocks BattlePassUnlock[]
   referralsMade    User[] @relation("UserReferrals")
   referredBy       User? @relation("UserReferrals", fields: [referredById], references: [id], onDelete: SetNull)
 
@@ -432,6 +434,8 @@ model Season {
   isActive  Boolean  @default(false)
   createdAt DateTime @default(now())
   rewards   SeasonReward[]
+  battlePassClaims BattlePassClaim[]
+  battlePassUnlocks BattlePassUnlock[]
   @@map("seasons")
 }
 
@@ -703,4 +707,34 @@ model SeasonReward {
   @@unique([seasonId, userId])
   @@unique([seasonId, place])
   @@map("season_rewards")
+}
+
+
+model BattlePassClaim {
+  id        String   @id @default(cuid())
+  seasonId  String
+  userId    String
+  tier      Int
+  track     String
+  rewardKey String
+  claimedAt DateTime @default(now())
+  season    Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([seasonId, userId, tier, track])
+  @@index([userId, claimedAt])
+  @@map("battle_pass_claims")
+}
+
+model BattlePassUnlock {
+  id        String   @id @default(cuid())
+  seasonId  String
+  userId    String
+  priceGems Int      @default(400)
+  unlockedAt DateTime @default(now())
+  season    Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([seasonId, userId])
+  @@map("battle_pass_unlocks")
 }
