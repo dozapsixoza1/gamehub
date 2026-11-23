@@ -37,7 +37,7 @@ export async function GET(req:NextRequest,context:{params:Promise<{id:string}>})
     const manager=!!membership&&["LEADER","DEPUTY","OFFICER"].includes(membership.role);
     return NextResponse.json({clan:{
       id:clan.id,name:clan.name,tag:clan.tag,slug:clan.slug,description:clan.description,avatarUrl:clan.avatarUrl,bannerUrl:clan.bannerUrl,
-      announcement:clan.announcement,level:clan.level,xp:clan.xp,tagColor:clan.tagColor,inviteCode:manager?clan.inviteCode:null,
+      announcement:clan.announcement,isPublic:clan.isPublic,level:clan.level,xp:clan.xp,tagColor:clan.tagColor,inviteCode:manager?clan.inviteCode:null,
       createdAt:clan.createdAt,memberCount:clan._count.members,owner:clan.owner,trophies:clan.trophies,actionLogs:manager?clan.actionLogs:[],
       applications:manager?clan.applications.map(a=>({id:a.id,userId:a.userId,name:a.user.firstName||a.user.username||"Игрок",level:a.user.level,createdAt:a.createdAt})):[],
       members:clan.members.map(m=>({id:m.user.id,role:m.role,joinedAt:m.joinedAt,name:m.user.settings?.displayName||[m.user.firstName,m.user.lastName].filter(Boolean).join(" ")||m.user.username||"Игрок",username:m.user.username,avatar:m.user.settings?.avatarUrl||m.user.photoUrl,level:m.user.level,nicknameColor:m.user.settings?.nicknameColor||null}))
