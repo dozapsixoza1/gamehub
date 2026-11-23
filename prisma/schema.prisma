@@ -72,6 +72,7 @@ model User {
   challengesSent PlayerChallenge[] @relation("ChallengeSender")
   challengesReceived PlayerChallenge[] @relation("ChallengeRecipient")
   clanMemberships ClanMember[]
+  clanApplications ClanApplication[]
   ownedClans Clan[] @relation("ClanOwner")
   notifications AppNotification[]
   questClaims QuestClaim[]
