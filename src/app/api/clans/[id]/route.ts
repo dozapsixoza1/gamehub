@@ -32,7 +32,8 @@ export async function GET(req:NextRequest,context:{params:Promise<{id:string}>})
     }});
     if(!clan)return NextResponse.json({error:"Клан не найден"},{status:404});
     const membership=clan.members.find(m=>m.userId===user.id);
-    if(!clan.isPublic&&!membership)return NextResponse.json({error:"Клан не найден"},{status:404});
+    const inviteQuery=req.nextUrl.searchParams.get("invite");
+    if(!clan.isPublic&&!membership&&(!inviteQuery||inviteQuery!==clan.inviteCode))return NextResponse.json({error:"Клан не найден"},{status:404});
     const manager=!!membership&&["LEADER","DEPUTY","OFFICER"].includes(membership.role);
     return NextResponse.json({clan:{
       id:clan.id,name:clan.name,tag:clan.tag,slug:clan.slug,description:clan.description,avatarUrl:clan.avatarUrl,bannerUrl:clan.bannerUrl,
