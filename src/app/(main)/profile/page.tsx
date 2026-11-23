@@ -94,7 +94,7 @@ export default function ProfilePage() {
 
   return (
     <div className="px-4 pt-6 pb-8 max-w-lg mx-auto space-y-4">
-      <div className="flex items-center gap-4">
+      <div className={`flex items-center gap-4 rounded-2xl p-3 ${user.profileBackground === "prism" ? "profile-prism" : ""}`}>
         <PlayerAvatar name={user.displayName || user.firstName || "Игрок"} imageUrl={user.avatarUrl || user.photoUrl} online sizeClassName="h-16 w-16 text-2xl font-bold" frame={user.profileFrame} animation={user.avatarAnimation} effect={user.profileEffect}/>
         <div className="min-w-0">
           <h1 className="text-xl font-bold text-white truncate" style={user.nicknameColor === "amethyst" ? { color: "#c4b5fd" } : undefined}>{user.displayName || `${user.firstName || ""} ${user.lastName || ""}`.trim()}</h1>
