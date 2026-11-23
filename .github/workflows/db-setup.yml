@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - "prisma/schema.prisma"
+      - "prisma/seed.ts"
       - ".github/workflows/db-setup.yml"
 
 concurrency:
@@ -43,5 +44,10 @@ jobs:
 
       - name: Apply database schema
         run: npx prisma db push
+        env:
+          DATABASE_URL: ${{ secrets.DIRECT_URL || secrets.DATABASE_URL }}
+
+      - name: Seed shop catalog and achievements
+        run: npm run db:seed
         env:
           DATABASE_URL: ${{ secrets.DIRECT_URL || secrets.DATABASE_URL }}
