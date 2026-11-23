@@ -62,6 +62,7 @@ model User {
   purchases        Purchase[]
   starOrders       StarOrder[]
   mafiaPlayers     MafiaPlayer[]
+  bunkerPlayers    BunkerPlayer[]
   ownedItems       UserItem[]
   achievements     UserAchievement[]
   dailyRewards     DailyReward[]
@@ -764,4 +765,38 @@ model BattlePassUnlock {
 
   @@unique([seasonId, userId])
   @@map("battle_pass_unlocks")
+}
+
+
+// ======================
+// BUNKER GAME
+// ======================
+model BunkerRoom {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  hostId      String
+  status      String   @default("WAITING")
+  round       Int      @default(0)
+  maxPlayers  Int      @default(12)
+  eliminated  String[] @default([])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  players     BunkerPlayer[]
+  @@index([status, createdAt])
+  @@map("bunker_rooms")
+}
+
+model BunkerPlayer {
+  id          String   @id @default(cuid())
+  roomId      String
+  userId      String
+  isHost      Boolean  @default(false)
+  character   Json?
+  voteTarget  String?
+  joinedAt    DateTime @default(now())
+  room        BunkerRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([roomId, userId])
+  @@index([roomId])
+  @@map("bunker_players")
 }
