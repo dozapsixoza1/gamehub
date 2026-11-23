@@ -10,7 +10,7 @@ type Clan={id:string;name:string;tag:string;slug:string;description:string|null;
 export default function ClanProfilePage(){
  const params=useParams<{id:string}>(),{initData}=useTelegram();
  const [clan,setClan]=useState<Clan|null>(null),[myRole,setMyRole]=useState<string|null>(null),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
- const [invite,setInvite]=useState(""),[announcement,setAnnouncement]=useState(""),[description,setDescription]=useState(""),[tagColor,setTagColor]=useState("#a78bfa"),[trophyTitle,setTrophyTitle]=useState("");
+ const [invite,setInvite]=useState(""),[challengeTarget,setChallengeTarget]=useState(""),[announcement,setAnnouncement]=useState(""),[description,setDescription]=useState(""),[tagColor,setTagColor]=useState("#a78bfa"),[trophyTitle,setTrophyTitle]=useState("");
  const [inviteQuery,setInviteQuery]=useState("");
  const load=useCallback(async()=>{
    if(!initData||!params.id)return;
