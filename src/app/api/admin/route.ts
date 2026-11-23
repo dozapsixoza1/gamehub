@@ -42,7 +42,8 @@ async function getActor(initData: string) {
   const telegramId = BigInt(auth.user.id);
   const user = await prisma.user.findUnique({ where: { telegramId }, include: { adminStaff: true } });
   if (!user || user.isBanned) return null;
-  const root = rootIds().includes(telegramId.toString());
+  // isAdmin is the persisted owner/admin flag; keep the env allowlist as an additional root path.
+  const root = user.isAdmin || rootIds().includes(telegramId.toString());
   const role = user.adminStaff?.role || null;
   const permissions = root ? ["*"] : (user.adminStaff?.permissions as string[] | null) || ROLE_PERMISSIONS[role || ""] || [];
   return { user, telegramId, root, role, permissions };
