@@ -193,7 +193,7 @@ export async function POST(req: NextRequest) {
       if (name.length < 3) return NextResponse.json({ error: "Название должно содержать минимум 3 символа" }, { status: 400 });
       const slugBase = name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "").slice(0, 22) || "clan";
       const clan = await prisma.clan.create({
-        data: { name, slug: slugBase + "-" + nanoid(5).toLowerCase(), description: description || null, emblem, ownerId: me.id, members: { create: { userId: me.id, role: "OWNER" } } },
+        data: { name, tag: nanoid(5).toUpperCase(), slug: slugBase + "-" + nanoid(5).toLowerCase(), description: description || null, emblem, ownerId: me.id, members: { create: { userId: me.id, role: "OWNER" } } },
       });
       return NextResponse.json({ success: true, clanId: clan.id });
     }

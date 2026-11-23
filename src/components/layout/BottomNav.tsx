@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Gamepad2, ShoppingBag, User, Users, MessageCircle } from "lucide-react";
+import { Gamepad2, ShoppingBag, User, Users, MessageCircle, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const tabs = [
   { href: "/", label: "Игры", icon: Gamepad2 },
   { href: "/rooms", label: "Комнаты", icon: Users },
+  { href: "/clans", label: "Кланы", icon: Shield },
   { href: "/shop", label: "Магазин", icon: ShoppingBag },
   { href: "/messages", label: "Чаты", icon: MessageCircle },
   { href: "/profile", label: "Профиль", icon: User },
@@ -25,7 +26,7 @@ export function BottomNav() {
     <nav aria-label="Основная навигация" className="fixed inset-x-0 bottom-0 z-50 px-2 pb-[env(safe-area-inset-bottom,0px)]">
       <div className="mx-auto w-full max-w-lg">
         <div className="mb-2 rounded-2xl glass border border-white/10 shadow-2xl">
-          <div className="grid w-full grid-cols-5 items-stretch gap-0.5 px-1 py-1.5">
+          <div className="grid w-full grid-cols-6 items-stretch gap-0.5 px-1 py-1.5">
             {tabs.map((tab) => {
               const isActive =
                 tab.href === "/"

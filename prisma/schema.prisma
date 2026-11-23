@@ -660,7 +660,10 @@ model Clan {
   id          String   @id @default(cuid())
   name        String
   slug        String   @unique
+  tag         String   @unique
   description String?
+  avatarUrl   String?
+  bannerUrl   String?
   emblem      String?  @default("🛡️")
   ownerId     String
   isPublic    Boolean  @default(true)
