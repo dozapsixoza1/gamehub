@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { validateTelegramWebAppData } from "@/lib/telegram";
 
@@ -19,6 +20,38 @@ const drawbacks = ["Боится темноты","Не переносит зам
 const pick = <T,>(items:T[]) => items[Math.floor(Math.random()*items.length)];
 const makeCard = () => ({ profession:pick(professions), age:18+Math.floor(Math.random()*48), health:pick(["Отличное","Хорошее","Среднее","Есть хроническое заболевание"]), hobby:pick(hobbies), trait:pick(traits), drawback:pick(drawbacks), baggage:pick(["Набор инструментов","Аптечка","Рация","Семена растений","Книги и карты","Запас консервов","Фильтр для воды","Набор для ремонта"]) });
 const makeCode = () => randomBytes(4).toString("hex").slice(0,6).toUpperCase();
+const after = (seconds:number) => new Date(Date.now()+seconds*1000);
+
+async function resolveVotes(roomId:string, timeout=false) {
+  const snapshot=await prisma.bunkerRoom.findUnique({where:{id:roomId}});
+  if(!snapshot||snapshot.status!=="VOTING")return false;
+  const claimed=await prisma.bunkerRoom.updateMany({where:{id:roomId,status:"VOTING",...(timeout?{phaseEndsAt:{lte:new Date()}}:{})},data:{status:"RESOLVING",phaseEndsAt:null}});
+  if(!claimed.count)return false;
+  const players=await prisma.bunkerPlayer.findMany({where:{roomId}});
+  const active=players.filter(p=>!snapshot.eliminated.includes(p.id));
+  const counts=new Map<string,number>();
+  active.forEach(p=>{if(p.voteTarget)counts.set(p.voteTarget,(counts.get(p.voteTarget)||0)+1);});
+  const max=Math.max(0,...counts.values());
+  const tied=[...counts].filter(([,n])=>n===max&&max>0).map(([id])=>id);
+  const eliminated=tied.length===1?[...snapshot.eliminated,tied[0]]:snapshot.eliminated;
+  const remaining=active.filter(p=>!eliminated.includes(p.id));
+  const finished=remaining.length<=2;
+  const history=JSON.parse(JSON.stringify(snapshot.voteHistory||[])) as Array<Record<string,unknown>>;
+  history.push({round:snapshot.round,counts:Object.fromEntries(counts),eliminatedId:tied.length===1?tied[0]:null,timedOut:timeout,at:new Date().toISOString()});
+  const operations:any[]=[
+    prisma.bunkerRoom.update({where:{id:roomId},data:{eliminated,status:finished?"FINISHED":"DISCUSSION",round:{increment:1},phaseEndsAt:finished?null:after(90),voteHistory:history as Prisma.InputJsonValue}}),
+    prisma.bunkerPlayer.updateMany({where:{roomId},data:{voteTarget:null}})
+  ];
+  if(finished){
+    operations.push(prisma.user.updateMany({where:{id:{in:players.map(p=>p.userId)}},data:{gamesPlayed:{increment:1}}}));
+    if(remaining.length)operations.push(prisma.user.updateMany({where:{id:{in:remaining.map(p=>p.userId)}},data:{coins:{increment:50},xp:{increment:30},gamesWon:{increment:1}}}));
+  }
+  await prisma.$transaction(operations);
+  return true;
+}
+async function getRoom(roomId:string) {
+  return prisma.bunkerRoom.findUnique({where:{id:roomId},include:{players:{include:{user:{select:{id:true,firstName:true,username:true,photoUrl:true}}},orderBy:{joinedAt:"asc"}}}});
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -26,13 +59,24 @@ export async function GET(req: NextRequest) {
     if (!user) return error("Нет доступа",401);
     const roomId = req.nextUrl.searchParams.get("roomId");
     if (!roomId) return error("Не указана комната");
-    const room = await prisma.bunkerRoom.findUnique({ where:{id:roomId}, include:{players:{include:{user:{select:{id:true,firstName:true,username:true,photoUrl:true}}},orderBy:{joinedAt:"asc"}}} });
+    let room=await getRoom(roomId);
+    if (!room) return error("Комната не найдена",404);
+    const now=new Date();
+    if(room.status==="DISCUSSION"&&room.phaseEndsAt&&room.phaseEndsAt<=now){
+      await prisma.bunkerRoom.updateMany({where:{id:room.id,status:"DISCUSSION",phaseEndsAt:{lte:now}},data:{status:"VOTING",phaseEndsAt:after(45)}});
+      room=await getRoom(roomId);
+    }
+    if(room?.status==="VOTING"&&room.phaseEndsAt&&room.phaseEndsAt<=new Date()){
+      await resolveVotes(roomId,true);
+      room=await getRoom(roomId);
+    }
     if (!room) return error("Комната не найдена",404);
     const me = room.players.find(p=>p.userId===user.id);
     if (!me) return error("Ты не участник этой комнаты",403);
     const alive = room.players.filter(p=>!room.eliminated.includes(p.id));
     return NextResponse.json({ room:{
-      id:room.id,code:room.code,status:room.status,round:room.round,maxPlayers:room.maxPlayers,
+      id:room.id,code:room.code,status:room.status,round:room.round,maxPlayers:room.maxPlayers,phaseEndsAt:room.phaseEndsAt,
+      voteHistory:room.voteHistory,
       players:room.players.map(p=>({id:p.id,userId:p.userId,name:p.user.firstName||p.user.username||"Игрок",photo:p.user.photoUrl,isHost:p.isHost,eliminated:room.eliminated.includes(p.id),character:room.status!=="WAITING"&&p.id===me.id?p.character:null,voted:Boolean(p.voteTarget)})),
       myPlayerId:me.id,myCharacter:me.character,winners:room.status==="FINISHED"?alive.map(p=>p.id):[]
     }});
@@ -71,18 +115,19 @@ export async function POST(req: NextRequest) {
       if (room.players.length<4) return error("Для начала нужно минимум 4 игрока");
       await prisma.$transaction([
         ...room.players.map(p=>prisma.bunkerPlayer.update({where:{id:p.id},data:{character:makeCard(),voteTarget:null}})),
-        prisma.bunkerRoom.updateMany({where:{id:room.id,status:"WAITING"},data:{status:"DISCUSSION",round:1}})
+        prisma.bunkerRoom.updateMany({where:{id:room.id,status:"WAITING"},data:{status:"DISCUSSION",round:1,phaseEndsAt:after(90),voteHistory:[]}})
       ]);
       return NextResponse.json({success:true});
     }
     if (action==="voting") {
       if(room.hostId!==user.id) return error("Только ведущий может начать голосование",403);
       if(room.status!=="DISCUSSION") return error("Сейчас нельзя начать голосование");
-      await prisma.bunkerRoom.updateMany({where:{id:room.id,status:"DISCUSSION"},data:{status:"VOTING"}});
+      await prisma.bunkerRoom.updateMany({where:{id:room.id,status:"DISCUSSION"},data:{status:"VOTING",phaseEndsAt:after(45)}});
       return NextResponse.json({success:true});
     }
     if (action==="vote") {
       if (room.status!=="VOTING") return error("Сейчас голосование не идёт");
+      if (room.phaseEndsAt&&room.phaseEndsAt<=new Date()) { await resolveVotes(room.id,true); return error("Время голосования вышло"); }
       if (room.eliminated.includes(me.id)) return error("Исключённые игроки не голосуют");
       if (me.voteTarget) return error("Твой голос уже принят");
       const targetId=String(body.targetId||"");
@@ -91,23 +136,33 @@ export async function POST(req: NextRequest) {
       if (!saved.count) return error("Твой голос уже принят",409);
       const refreshed=await prisma.bunkerPlayer.findMany({where:{roomId:room.id}});
       const active=refreshed.filter(p=>!room.eliminated.includes(p.id));
-      if (active.every(p=>Boolean(p.voteTarget))) {
-        // Only one concurrent request may claim resolution of this voting phase.
-        const claimed=await prisma.bunkerRoom.updateMany({where:{id:room.id,status:"VOTING"},data:{status:"RESOLVING"}});
-        if (claimed.count) {
-          const counts=new Map<string,number>();
-          active.forEach(p=>{if(p.voteTarget)counts.set(p.voteTarget,(counts.get(p.voteTarget)||0)+1);});
-          const max=Math.max(0,...counts.values());
-          const tied=[...counts].filter(([,n])=>n===max).map(([id])=>id);
-          const eliminated=tied.length===1?[...room.eliminated,tied[0]]:room.eliminated;
-          const remaining=active.filter(p=>!eliminated.includes(p.id));
-          await prisma.$transaction([
-            prisma.bunkerRoom.update({where:{id:room.id},data:{eliminated,status:remaining.length<=2?"FINISHED":"DISCUSSION",round:{increment:1}}}),
-            prisma.bunkerPlayer.updateMany({where:{roomId:room.id},data:{voteTarget:null}})
-          ]);
-          return NextResponse.json({success:true,roundEnded:true,eliminatedId:tied.length===1?tied[0]:null,winners:remaining.length<=2?remaining.map(p=>p.id):[]});
-        }
-      }
+      if (active.every(p=>Boolean(p.voteTarget))) await resolveVotes(room.id);
+      return NextResponse.json({success:true});
+    }
+    if(action==="maxPlayers"){
+      if(room.hostId!==user.id||room.status!=="WAITING")return error("Настройки доступны ведущему до начала игры",403);
+      const max=Number(body.maxPlayers);
+      if(!Number.isInteger(max)||max<4||max>12||max<room.players.length)return error("Лимит должен быть от 4 до 12 и не меньше текущего состава");
+      await prisma.bunkerRoom.update({where:{id:room.id},data:{maxPlayers:max}});
+      return NextResponse.json({success:true});
+    }
+    if(action==="transferHost"){
+      if(room.hostId!==user.id||room.status!=="WAITING")return error("Передать ведущего можно только до начала игры",403);
+      const target=room.players.find(p=>p.userId===String(body.userId||""));
+      if(!target)return error("Игрок не найден");
+      await prisma.$transaction([
+        prisma.bunkerRoom.update({where:{id:room.id},data:{hostId:target.userId}}),
+        prisma.bunkerPlayer.updateMany({where:{roomId:room.id},data:{isHost:false}}),
+        prisma.bunkerPlayer.update({where:{id:target.id},data:{isHost:true}})
+      ]);
+      return NextResponse.json({success:true});
+    }
+    if(action==="restart"){
+      if(room.hostId!==user.id||room.status!=="FINISHED")return error("Перезапустить игру может ведущий после завершения",403);
+      await prisma.$transaction([
+        prisma.bunkerPlayer.updateMany({where:{roomId:room.id},data:{character:Prisma.DbNull,voteTarget:null}}),
+        prisma.bunkerRoom.update({where:{id:room.id},data:{status:"WAITING",round:0,eliminated:[],phaseEndsAt:null,voteHistory:[]}})
+      ]);
       return NextResponse.json({success:true});
     }
     return error("Неизвестное действие");
