@@ -23,31 +23,44 @@ const makeCode = () => randomBytes(4).toString("hex").slice(0,6).toUpperCase();
 const after = (seconds:number) => new Date(Date.now()+seconds*1000);
 
 async function resolveVotes(roomId:string, timeout=false) {
-  const snapshot=await prisma.bunkerRoom.findUnique({where:{id:roomId}});
-  if(!snapshot||snapshot.status!=="VOTING")return false;
-  const claimed=await prisma.bunkerRoom.updateMany({where:{id:roomId,status:"VOTING",...(timeout?{phaseEndsAt:{lte:new Date()}}:{})},data:{status:"RESOLVING",phaseEndsAt:null}});
-  if(!claimed.count)return false;
-  const players=await prisma.bunkerPlayer.findMany({where:{roomId}});
-  const active=players.filter(p=>!snapshot.eliminated.includes(p.id));
-  const counts=new Map<string,number>();
-  active.forEach(p=>{if(p.voteTarget)counts.set(p.voteTarget,(counts.get(p.voteTarget)||0)+1);});
-  const max=Math.max(0,...counts.values());
-  const tied=[...counts].filter(([,n])=>n===max&&max>0).map(([id])=>id);
-  const eliminated=tied.length===1?[...snapshot.eliminated,tied[0]]:snapshot.eliminated;
-  const remaining=active.filter(p=>!eliminated.includes(p.id));
-  const finished=remaining.length<=2;
-  const history=JSON.parse(JSON.stringify(snapshot.voteHistory||[])) as Array<Record<string,unknown>>;
-  history.push({round:snapshot.round,counts:Object.fromEntries(counts),eliminatedId:tied.length===1?tied[0]:null,timedOut:timeout,at:new Date().toISOString()});
-  const operations:any[]=[
-    prisma.bunkerRoom.update({where:{id:roomId},data:{eliminated,status:finished?"FINISHED":"DISCUSSION",round:{increment:1},phaseEndsAt:finished?null:after(90),voteHistory:history as Prisma.InputJsonValue}}),
-    prisma.bunkerPlayer.updateMany({where:{roomId},data:{voteTarget:null}})
-  ];
-  if(finished){
-    operations.push(prisma.user.updateMany({where:{id:{in:players.map(p=>p.userId)}},data:{gamesPlayed:{increment:1}}}));
-    if(remaining.length)operations.push(prisma.user.updateMany({where:{id:{in:remaining.map(p=>p.userId)}},data:{coins:{increment:50},xp:{increment:30},gamesWon:{increment:1}}}));
+  try {
+    return await prisma.$transaction(async tx => {
+      const now=new Date();
+      const claimed=await tx.bunkerRoom.updateMany({
+        where:{id:roomId,status:"VOTING",...(timeout?{phaseEndsAt:{lte:now}}:{})},
+        data:{status:"RESOLVING",phaseEndsAt:null}
+      });
+      if(!claimed.count)return false;
+
+      const snapshot=await tx.bunkerRoom.findUnique({where:{id:roomId}});
+      if(!snapshot)return false;
+      const players=await tx.bunkerPlayer.findMany({where:{roomId}});
+      const active=players.filter(p=>!snapshot.eliminated.includes(p.id));
+      const counts=new Map<string,number>();
+      active.forEach(p=>{if(p.voteTarget)counts.set(p.voteTarget,(counts.get(p.voteTarget)||0)+1);});
+      const max=Math.max(0,...counts.values());
+      const tied=[...counts].filter(([,n])=>n===max&&max>0).map(([id])=>id);
+      const eliminated=tied.length===1?[...snapshot.eliminated,tied[0]]:snapshot.eliminated;
+      const remaining=active.filter(p=>!eliminated.includes(p.id));
+      const finished=remaining.length<=2;
+      const history=JSON.parse(JSON.stringify(snapshot.voteHistory||[])) as Array<Record<string,unknown>>;
+      history.push({round:snapshot.round,counts:Object.fromEntries(counts),eliminatedId:tied.length===1?tied[0]:null,timedOut:timeout,at:now.toISOString()});
+
+      await tx.bunkerRoom.update({where:{id:roomId},data:{
+        eliminated,status:finished?"FINISHED":"DISCUSSION",round:{increment:1},
+        phaseEndsAt:finished?null:after(90),voteHistory:history as Prisma.InputJsonValue
+      }});
+      await tx.bunkerPlayer.updateMany({where:{roomId},data:{voteTarget:null}});
+      if(finished){
+        await tx.user.updateMany({where:{id:{in:players.map(p=>p.userId)}},data:{gamesPlayed:{increment:1}}});
+        if(remaining.length)await tx.user.updateMany({where:{id:{in:remaining.map(p=>p.userId)}},data:{coins:{increment:50},xp:{increment:30},gamesWon:{increment:1}}});
+      }
+      return true;
+    },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
+  } catch(e) {
+    console.error("Bunker vote resolution",e);
+    return false;
   }
-  await prisma.$transaction(operations);
-  return true;
 }
 async function getRoom(roomId:string) {
   return prisma.bunkerRoom.findUnique({where:{id:roomId},include:{players:{include:{user:{select:{id:true,firstName:true,username:true,photoUrl:true}}},orderBy:{joinedAt:"asc"}}}});
