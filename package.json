@@ -11,8 +11,7 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
-    "postinstall": "prisma generate",
-    "vercel-build": "prisma db push && npm run build"
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "next": "^15.5.7",
