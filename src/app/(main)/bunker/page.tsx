@@ -1,0 +1,17 @@
+"use client";
+import {useState} from "react";
+import {useRouter} from "next/navigation";
+import {useTelegram} from "@/components/layout/TelegramProvider";
+import {Shield,Plus,LogIn,Users,AlertCircle} from "lucide-react";
+export default function BunkerLobby(){
+ const {user,initData}=useTelegram(); const router=useRouter(); const [code,setCode]=useState(""); const [busy,setBusy]=useState(false); const [error,setError]=useState("");
+ async function request(action:string,extra:Record<string,unknown>={}){if(!initData||busy)return;setBusy(true);setError("");try{const r=await fetch("/api/bunker/room",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({initData,action,...extra})});const d=await r.json();if(!r.ok)throw new Error(d.error||"Ошибка");if(d.roomId)router.push("/bunker/"+d.roomId);}catch(e){setError(e instanceof Error?e.message:"Ошибка сети");}finally{setBusy(false);}}
+ return <main className="max-w-lg mx-auto px-4 pt-7 pb-10">
+ <header className="text-center mb-8"><div className="mx-auto mb-4 w-20 h-20 rounded-3xl border border-emerald-400/20 bg-gradient-to-br from-emerald-950 to-slate-900 flex items-center justify-center shadow-xl shadow-emerald-950/30"><Shield size={38} className="text-emerald-300"/></div><p className="text-[10px] uppercase tracking-[.35em] text-emerald-300/70 font-bold">GameHub · Survival</p><h1 className="text-3xl font-black text-white mt-2">БУНКЕР</h1><p className="text-sm text-white/50 mt-2">Апокалипсис уже наступил. Мест в убежище хватит не всем.</p></header>
+ <button onClick={()=>request("create")} disabled={!user||busy} className="w-full rounded-2xl bg-gradient-to-r from-emerald-700 to-teal-800 py-4 font-bold text-white flex items-center justify-center gap-2 disabled:opacity-50"><Plus size={19}/>{busy?"Подожди...":"Создать комнату"}</button>
+ <div className="my-6 flex items-center gap-3"><div className="h-px flex-1 bg-white/10"/><span className="text-xs text-white/30">ИЛИ ВСТУПИТЬ</span><div className="h-px flex-1 bg-white/10"/></div>
+ <div className="glass rounded-2xl p-4"><label className="block text-xs text-white/50 mb-2">Код комнаты</label><div className="flex gap-2"><input value={code} onChange={e=>setCode(e.target.value.toUpperCase())} maxLength={6} placeholder="ABC123" className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-center font-mono tracking-[.3em] text-white outline-none"/><button onClick={()=>request("join",{code})} disabled={busy||code.length!==6||!user} className="rounded-xl bg-white/10 px-5 text-white disabled:opacity-40"><LogIn size={19}/></button></div></div>
+ {error&&<p className="mt-4 flex items-center justify-center gap-2 text-sm text-red-300"><AlertCircle size={15}/>{error}</p>}
+ <section className="glass rounded-2xl p-5 mt-8"><div className="flex items-center gap-2 text-white font-bold mb-3"><Users size={17}/>Правила игры</div><ul className="space-y-2 text-sm text-white/55"><li>• От 4 до 12 игроков в комнате.</li><li>• У каждого случайный персонаж: профессия, здоровье, хобби и багаж.</li><li>• Обсуждайте, кто принесёт больше пользы группе.</li><li>• Ведущий запускает голосование, игроки выбирают кандидата на исключение.</li><li>• Побеждает команда, которая сохранит места в убежище.</li></ul></section>
+ </main>;
+}

@@ -62,6 +62,7 @@ model User {
   purchases        Purchase[]
   starOrders       StarOrder[]
   mafiaPlayers     MafiaPlayer[]
+  bunkerPlayers    BunkerPlayer[]
   ownedItems       UserItem[]
   achievements     UserAchievement[]
   dailyRewards     DailyReward[]
@@ -71,6 +72,7 @@ model User {
   challengesSent PlayerChallenge[] @relation("ChallengeSender")
   challengesReceived PlayerChallenge[] @relation("ChallengeRecipient")
   clanMemberships ClanMember[]
+  clanApplications ClanApplication[]
   ownedClans Clan[] @relation("ClanOwner")
   notifications AppNotification[]
   questClaims QuestClaim[]
@@ -667,10 +669,21 @@ model Clan {
   emblem      String?  @default("🛡️")
   ownerId     String
   isPublic    Boolean  @default(true)
+  announcement String?
+  level       Int      @default(1)
+  xp          Int      @default(0)
+  inviteCode  String?  @unique
+  tagColor    String   @default("#a78bfa")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   owner       User     @relation("ClanOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members     ClanMember[]
+  applications ClanApplication[]
+  actionLogs ClanActionLog[]
+  trophies ClanTrophy[]
+  challengesSent ClanChallenge[] @relation("ClanChallengeSender")
+  challengesReceived ClanChallenge[] @relation("ClanChallengeReceiver")
+  challengesWon ClanChallenge[] @relation("ClanChallengeWinner")
 
   @@index([name])
   @@map("clans")
@@ -764,4 +777,98 @@ model BattlePassUnlock {
 
   @@unique([seasonId, userId])
   @@map("battle_pass_unlocks")
+}
+
+
+// ======================
+// BUNKER GAME
+// ======================
+model BunkerRoom {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  hostId      String
+  status      String   @default("WAITING")
+  round       Int      @default(0)
+  maxPlayers  Int      @default(12)
+  eliminated  String[] @default([])
+  phaseEndsAt DateTime?
+  voteHistory Json     @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  players     BunkerPlayer[]
+  @@index([status, createdAt])
+  @@map("bunker_rooms")
+}
+
+model BunkerPlayer {
+  id          String   @id @default(cuid())
+  roomId      String
+  userId      String
+  isHost      Boolean  @default(false)
+  character   Json?
+  voteTarget  String?
+  joinedAt    DateTime @default(now())
+  room        BunkerRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([roomId, userId])
+  @@index([roomId])
+  @@map("bunker_players")
+}
+
+
+model ClanApplication {
+  id        String   @id @default(cuid())
+  clanId    String
+  userId    String
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  clan      Clan @relation(fields: [clanId], references: [id], onDelete: Cascade)
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([clanId, userId])
+  @@index([clanId, status, createdAt])
+  @@map("clan_applications")
+}
+
+model ClanActionLog {
+  id        String   @id @default(cuid())
+  clanId    String
+  actorId   String
+  action    String
+  details   String?
+  createdAt DateTime @default(now())
+  clan      Clan @relation(fields: [clanId], references: [id], onDelete: Cascade)
+  @@index([clanId, createdAt])
+  @@map("clan_action_logs")
+}
+
+model ClanTrophy {
+  id          String   @id @default(cuid())
+  clanId      String
+  title       String
+  description String?
+  icon        String   @default("🏆")
+  awardedAt   DateTime @default(now())
+  clan        Clan @relation(fields: [clanId], references: [id], onDelete: Cascade)
+  @@index([clanId, awardedAt])
+  @@map("clan_trophies")
+}
+
+
+model ClanChallenge {
+  id                String   @id @default(cuid())
+  challengerClanId  String
+  challengedClanId  String
+  winnerClanId      String?
+  createdById       String
+  gameId            String   @default("bunker")
+  status            String   @default("PENDING")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  challenger        Clan     @relation("ClanChallengeSender", fields: [challengerClanId], references: [id], onDelete: Cascade)
+  challenged        Clan     @relation("ClanChallengeReceiver", fields: [challengedClanId], references: [id], onDelete: Cascade)
+  winner            Clan?    @relation("ClanChallengeWinner", fields: [winnerClanId], references: [id], onDelete: SetNull)
+  @@index([challengerClanId, status, createdAt])
+  @@index([challengedClanId, status, createdAt])
+  @@map("clan_challenges")
 }

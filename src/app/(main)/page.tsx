@@ -5,7 +5,7 @@ import { GameCard } from "@/components/games/GameCard";
 import { GAMES } from "@/lib/games";
 import { formatNumber } from "@/lib/utils";
 import Link from "next/link";
-import { Coins, Gem, Crown, ArrowRight } from "lucide-react";
+import { Coins, Gem, Crown, ArrowRight, Sparkles, ShieldCheck } from "lucide-react";
 
 export default function HomePage() {
   const { user, isLoading } = useTelegram();
@@ -29,6 +29,13 @@ export default function HomePage() {
           Выбери игру и зови друзей
         </p>
       </div>
+
+      <section className="mb-5 overflow-hidden rounded-2xl border border-violet-400/20 bg-gradient-to-br from-violet-950/55 via-slate-900/70 to-cyan-950/40 p-4">
+        <div className="flex items-center gap-2 text-violet-200"><Sparkles size={16}/><span className="text-[10px] font-black uppercase tracking-[.22em]">Global Update</span></div>
+        <h2 className="mt-2 text-lg font-black text-white">GameHub выходит на новый уровень</h2>
+        <p className="mt-1 text-xs leading-relaxed text-white/55">Новые игровые режимы, развитие кланов и больше возможностей для твоего профиля.</p>
+        <Link href="/bunker" className="mt-3 inline-flex items-center gap-2 rounded-xl bg-emerald-700/80 px-3 py-2 text-xs font-bold text-white"><ShieldCheck size={15}/>Играть в Бункер <ArrowRight size={14}/></Link>
+      </section>
 
       {/* Balance */}
       {user && (
