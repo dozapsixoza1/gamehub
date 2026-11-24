@@ -21,6 +21,7 @@ const pick = <T,>(items:T[]) => items[Math.floor(Math.random()*items.length)];
 const makeCard = () => ({ profession:pick(professions), age:18+Math.floor(Math.random()*48), health:pick(["Отличное","Хорошее","Среднее","Есть хроническое заболевание"]), hobby:pick(hobbies), trait:pick(traits), drawback:pick(drawbacks), baggage:pick(["Набор инструментов","Аптечка","Рация","Семена растений","Книги и карты","Запас консервов","Фильтр для воды","Набор для ремонта"]) });
 const makeCode = () => randomBytes(4).toString("hex").slice(0,6).toUpperCase();
 const after = (seconds:number) => new Date(Date.now()+seconds*1000);
+const levelForXp = (xp:number) => Math.floor(Math.sqrt(Math.max(0,xp)/100))+1;
 
 async function resolveVotes(roomId:string, timeout=false) {
   try {
@@ -53,7 +54,12 @@ async function resolveVotes(roomId:string, timeout=false) {
       await tx.bunkerPlayer.updateMany({where:{roomId},data:{voteTarget:null}});
       if(finished){
         await tx.user.updateMany({where:{id:{in:players.map(p=>p.userId)}},data:{gamesPlayed:{increment:1}}});
-        if(remaining.length)await tx.user.updateMany({where:{id:{in:remaining.map(p=>p.userId)}},data:{coins:{increment:50},xp:{increment:30},gamesWon:{increment:1}}});
+        if(remaining.length){
+          const winnerUsers=await tx.user.findMany({where:{id:{in:remaining.map(p=>p.userId)}},select:{id:true,xp:true}});
+          for(const winner of winnerUsers){
+            await tx.user.update({where:{id:winner.id},data:{coins:{increment:50},xp:{increment:30},gamesWon:{increment:1},level:levelForXp(winner.xp+30)}});
+          }
+        }
         await tx.matchHistory.createMany({
           data: players.map(player => {
             const won=remaining.some(winner=>winner.userId===player.userId);
