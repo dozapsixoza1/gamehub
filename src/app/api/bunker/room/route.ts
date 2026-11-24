@@ -170,6 +170,13 @@ export async function POST(req: NextRequest) {
       ]);
       return NextResponse.json({success:true});
     }
+    if(action==="leave"){
+      if(room.status!=="WAITING"&&room.status!=="FINISHED")return error("Во время активной партии выйти нельзя");
+      if(room.hostId===user.id&&room.players.length>1)return error("Передай ведущего другому игроку перед выходом");
+      if(room.hostId===user.id)await prisma.bunkerRoom.delete({where:{id:room.id}});
+      else await prisma.bunkerPlayer.delete({where:{id:me.id}});
+      return NextResponse.json({success:true});
+    }
     if(action==="restart"){
       if(room.hostId!==user.id||room.status!=="FINISHED")return error("Перезапустить игру может ведущий после завершения",403);
       await prisma.$transaction([
