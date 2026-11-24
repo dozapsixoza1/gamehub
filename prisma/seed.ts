@@ -50,6 +50,12 @@ const SHOP_ITEMS = [
     sortOrder: 5,
   },
 
+  // === БУНКЕР ===
+  { name: "Аптечка выжившего", description: "Один раз за партию улучшает показатель здоровья персонажа", gameId: "bunker", category: "bunker-gear", priceCoins: 350, priceGems: 0, sortOrder: 1, metadata: { bunkerEffect: "medkit" } },
+  { name: "Тактическая рация", description: "Один раз за партию открывает дополнительный навык связи", gameId: "bunker", category: "bunker-gear", priceCoins: 500, priceGems: 0, sortOrder: 2, metadata: { bunkerEffect: "radio" } },
+  { name: "Набор инструментов", description: "Один раз за партию добавляет полезный багаж для ремонта", gameId: "bunker", category: "bunker-gear", priceCoins: 450, priceGems: 0, sortOrder: 3, metadata: { bunkerEffect: "toolkit" } },
+  { name: "Запас провизии", description: "Один раз за партию добавляет запас еды в багаж", gameId: "bunker", category: "bunker-gear", priceCoins: 300, priceGems: 0, sortOrder: 4, metadata: { bunkerEffect: "ration" } },
+
   // === ОБЩЕЕ ===
   {
     name: "Пакет 500 монет",
