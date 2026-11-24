@@ -154,7 +154,7 @@ export async function POST(req: NextRequest) {
       const current=(me.character&&typeof me.character==="object"?me.character:{}) as Record<string,unknown>;
       const used=Array.isArray(current.usedItemIds)?current.usedItemIds as string[]:[];
       if(used.includes(itemId)) return error("Этот предмет уже использован в текущей партии");
-      const next={...current,usedItemIds:[...used,itemId]};
+      const next:Record<string,unknown>={...current,usedItemIds:[...used,itemId]};
       if(effect==="medkit") next.health="Отличное";
       else if(effect==="radio") next.trait="Есть тактическая рация и навыки радиосвязи";
       else if(effect==="toolkit") next.baggage="Набор инструментов для ремонта";
