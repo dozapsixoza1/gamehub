@@ -54,6 +54,15 @@ async function resolveVotes(roomId:string, timeout=false) {
       if(finished){
         await tx.user.updateMany({where:{id:{in:players.map(p=>p.userId)}},data:{gamesPlayed:{increment:1}}});
         if(remaining.length)await tx.user.updateMany({where:{id:{in:remaining.map(p=>p.userId)}},data:{coins:{increment:50},xp:{increment:30},gamesWon:{increment:1}}});
+        await tx.matchHistory.createMany({
+          data: players.map(player => {
+            const won=remaining.some(winner=>winner.userId===player.userId);
+            return {userId:player.userId,gameId:"bunker",roomId, result:won?"WIN":"LOSS",winner:won?"SURVIVORS":null,summary:"Партия в Бункер завершена",playersCount:players.length,xpEarned:won?30:0,coinsEarned:won?50:0};
+          })
+        });
+        await tx.xpTransaction.createMany({
+          data: remaining.map(player=>({userId:player.userId,amount:30,source:"BUNKER_WIN",reason:"Победа в Бункере",balanceAfter:0}))
+        });
       }
       return true;
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
