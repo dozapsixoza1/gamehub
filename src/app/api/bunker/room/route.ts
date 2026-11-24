@@ -87,7 +87,12 @@ export async function GET(req: NextRequest) {
     const me = room.players.find(p=>p.userId===user.id);
     if (!me) return error("Ты не участник этой комнаты",403);
     const alive = room.players.filter(p=>!room.eliminated.includes(p.id));
-    return NextResponse.json({ room:{
+    const inventory = await prisma.userItem.findMany({
+      where: { userId: user.id, quantity: { gt: 0 }, item: { gameId: "bunker", isActive: true } },
+      include: { item: { select: { id: true, name: true, description: true, metadata: true } } },
+      orderBy: { acquiredAt: "asc" },
+    });
+    return NextResponse.json({ inventory: inventory.map(entry => ({ itemId: entry.itemId, quantity: entry.quantity, name: entry.item.name, description: entry.item.description, effect: (entry.item.metadata as { bunkerEffect?: string } | null)?.bunkerEffect || null })), room:{
       id:room.id,code:room.code,status:room.status,round:room.round,maxPlayers:room.maxPlayers,phaseEndsAt:room.phaseEndsAt,
       voteHistory:room.voteHistory,
       players:room.players.map(p=>({id:p.id,userId:p.userId,name:p.user.firstName||p.user.username||"Игрок",photo:p.user.photoUrl,isHost:p.isHost,eliminated:room.eliminated.includes(p.id),character:room.status!=="WAITING"&&p.id===me.id?p.character:null,voted:Boolean(p.voteTarget)})),
@@ -122,6 +127,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({roomId:room.id});
     }
     if (!me) return error("Ты не участник комнаты",403);
+    if (action==="useItem") {
+      if (room.status!=="DISCUSSION" && room.status!=="VOTING") return error("Снаряжение можно использовать только во время активной партии");
+      if (room.eliminated.includes(me.id)) return error("Исключённый игрок не может использовать снаряжение");
+      const itemId=String(body.itemId||"");
+      if(!itemId) return error("Не выбран предмет");
+      const owned=await prisma.userItem.findUnique({where:{userId_itemId:{userId:user.id,itemId}},include:{item:true}});
+      if(!owned||owned.quantity<1||owned.item.gameId!=="bunker"||!owned.item.isActive) return error("Предмет не найден в инвентаре");
+      const effect=(owned.item.metadata as {bunkerEffect?:string}|null)?.bunkerEffect;
+      const current=(me.character&&typeof me.character==="object"?me.character:{}) as Record<string,unknown>;
+      const used=Array.isArray(current.usedItemIds)?current.usedItemIds as string[]:[];
+      if(used.includes(itemId)) return error("Этот предмет уже использован в текущей партии");
+      const next={...current,usedItemIds:[...used,itemId]};
+      if(effect==="medkit") next.health="Отличное";
+      else if(effect==="radio") next.trait="Есть тактическая рация и навыки радиосвязи";
+      else if(effect==="toolkit") next.baggage="Набор инструментов для ремонта";
+      else if(effect==="ration") next.baggage="Запас провизии на несколько дней";
+      else return error("У предмета неизвестный эффект");
+      await prisma.$transaction(async tx=>{
+        const consumed=await tx.userItem.updateMany({where:{id:owned.id,quantity:{gt:0}},data:{quantity:{decrement:1}}});
+        if(!consumed.count) throw new Error("ITEM_ALREADY_CONSUMED");
+        await tx.bunkerPlayer.update({where:{id:me.id},data:{character:next as Prisma.InputJsonValue}});
+        await tx.userItem.deleteMany({where:{id:owned.id,quantity:0}});
+      });
+      return NextResponse.json({success:true,message:"Снаряжение использовано"});
+    }
     if (action==="start") {
       if (room.hostId!==user.id) return error("Только ведущий может начать игру",403);
       if (room.status!=="WAITING") return error("Игра уже началась");
